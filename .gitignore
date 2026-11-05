@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# 데이터·모델·영상 (드라이브 링크로 공유)
+data/
+datasets/
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.ckpt
+*.mp4
+*.avi
+*.mov
+
+# 빌드·IDE
+.pio/
+build/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.env

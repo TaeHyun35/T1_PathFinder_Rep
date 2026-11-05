@@ -1,0 +1,24 @@
+name: progress-guard
+
+# docs/06_progress 추가 전용 규칙 검사
+# 브랜치 보호에서 이 검사를 "필수"로 지정해야 위반 PR의 merge가 막힙니다.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 06_progress 규칙 검사
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: bash .github/scripts/progress_guard.sh "$BASE_SHA" "$HEAD_SHA" "$PR_AUTHOR"
