@@ -1,0 +1,3 @@
+# 규칙·검사 파일은 관리자 리뷰 필수 (브랜치 보호의 "Require review from Code Owners"와 함께 사용)
+/.github/                     @TaeHyun35
+/docs/06_progress/README.md   @TaeHyun35
