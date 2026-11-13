@@ -1,0 +1,10 @@
+# Python 3.11 권장. 그래픽카드(NVIDIA)가 있으면 아래 torch 설치 줄을 먼저 실행하세요 (README 참고).
+torch
+ultralytics==8.4.204
+git+https://github.com/ultralytics/CLIP.git
+openai-whisper==20250625
+opencv-python
+sounddevice
+pyserial
+pillow
+numpy
