@@ -1,0 +1,7 @@
+logs/
+*.pem
+cert_ips.txt
+car_config.json
+.venv/
+captures/
+__pycache__/

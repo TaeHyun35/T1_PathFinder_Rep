@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VR 가리키기 실험</title>
+<style>
+  body { font-family: sans-serif; background: #111; color: #eee; margin: 16px; }
+  button { font-size: 28px; padding: 18px 28px; margin: 8px 8px 8px 0; border-radius: 12px; border: 0; background: #2d7ff9; color: #fff; }
+  button.car { background: #1f9d55; }
+  pre { background: #222; padding: 12px; border-radius: 8px; white-space: pre-wrap; font-size: 18px; }
+  h1 { font-size: 28px; }
+  li { font-size: 20px; margin: 6px 0; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<h1>VR 가리키기 실험</h1>
+<button id="acc">테스트 A: 가리키기 정확도 (테이프 격자)</button><br>
+<button id="car" class="car">테스트 B: 가리킨 곳으로 차 보내기</button>
+<ul>
+  <li>MR 안에서 눈앞에 뜨는 글자 "다음: ..."에 적힌 곳을 가리키고 엄지와 검지를 집으면 찍힙니다.</li>
+  <li>테스트 A 순서: A1 → A3 (보정) → A2, B1, B2, B3, C1, C2, C3</li>
+  <li>테스트 B 순서: 차 중심 → 차 앞 1m 테이프 (보정) → 보낼 곳</li>
+  <li>잘못 찍으면 노트북 터미널에서 <b>u</b> + Enter. 나올 때는 피코 메뉴 버튼.</li>
+</ul>
+<pre id="status">확인 중...</pre>
+<script type="module">
+import * as THREE from 'three';
+
+const statusEl = document.getElementById('status');
+const lines = [];
+const show = (s) => { lines.push(s); statusEl.textContent = lines.slice(-12).join('\n'); };
+const post = (o) => fetch('/api', { method: 'POST', body: JSON.stringify({ t: Date.now(), ...o }) })
+  .then(r => r.json()).catch(e => ({ hud: '서버 연결 실패' }));
+
+(async () => {
+  const ok = window.isSecureContext && navigator.xr && await navigator.xr.isSessionSupported('immersive-ar').catch(() => false);
+  show(ok ? 'MR 준비됨' : 'MR 안 됨 (https 주소로 들어왔는지, 피코 브라우저인지 확인)');
+  post({ type: 'support', ok, ua: navigator.userAgent });
+})();
+
+// ---- 눈앞 글자판
+function makeHud() {
+  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 256;
+  const ctx = cv.getContext('2d');
+  const tex = new THREE.CanvasTexture(cv);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false }));
+  mesh.renderOrder = 999;
+  mesh.set = (text) => {
+    ctx.clearRect(0, 0, 1024, 256);
+    ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(0, 0, 1024, 256);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 52px sans-serif';
+    String(text).split('\n').slice(0, 3).forEach((l, i) => ctx.fillText(l, 24, 72 + i * 76));
+    tex.needsUpdate = true;
+  };
+  return mesh;
+}
+
+let busy = false;
+async function start(mode) {
+  let session;
+  try {
+    session = await navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking'] });
+  } catch (e) { show('MR 시작 실패: ' + e.message); post({ type: 'session_fail', err: String(e) }); return; }
+  post({ type: 'session', mode });
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setClearColor(0x000000, 0);
+  renderer.xr.enabled = true;
+  renderer.xr.setReferenceSpaceType('local-floor');
+  document.body.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera();
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2));
+  const hud = makeHud(); scene.add(hud);
+  hud.set((await post({ type: 'hint', mode })).hud || '');
+
+  const mkRay = (color) => {
+    const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -1)]),
+      new THREE.LineBasicMaterial({ color }));
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.03, 0.05, 32), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }));
+    ring.rotation.x = -Math.PI / 2; l.visible = ring.visible = false; scene.add(l); scene.add(ring);
+    return { l, ring };
+  };
+  const vis = { left: mkRay(0xffaa00), right: mkRay(0x00aaff), none: mkRay(0xffffff) };
+
+  await renderer.xr.setSession(session);
+  const ref = () => renderer.xr.getReferenceSpace();
+
+  function floorHit(frame, src) {
+    const p = frame.getPose(src.targetRaySpace, ref());
+    if (!p) return null;
+    const o = p.transform.position, q = p.transform.orientation;
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(new THREE.Quaternion(q.x, q.y, q.z, q.w));
+    const res = { origin: [o.x, o.y, o.z], dir: [dir.x, dir.y, dir.z], hit: null };
+    if (dir.y < -0.05) { const t = -o.y / dir.y; res.hit = [o.x + dir.x * t, 0, o.z + dir.z * t]; res.dist = t; }
+    return res;
+  }
+
+  let lastSel = 0;
+  session.addEventListener('select', async (ev) => {
+    const now = performance.now();
+    if (now - lastSel < 700 || busy) return;          // 한 번 집었는데 두 번 찍히는 것 막기
+    lastSel = now;
+    const fh = floorHit(ev.frame, ev.inputSource);
+    if (!fh || !fh.hit) { hud.set('바닥을 가리키지 않았어요'); return; }
+    const kind = ev.inputSource.hand ? 'hand' : 'controller';
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.1), new THREE.MeshStandardMaterial({ color: kind === 'hand' ? 0x33ff66 : 0xff3366 }));
+    m.position.set(fh.hit[0], 0.05, fh.hit[2]); scene.add(m);
+    busy = mode === 'car'; hud.set('보내는 중...');
+    const r = await post({ type: 'pick', mode, kind, side: ev.inputSource.handedness, ...fh });
+    busy = false;
+    hud.set(r.hud || '');
+  });
+  session.addEventListener('end', () => { renderer.setAnimationLoop(null); renderer.domElement.remove(); show('MR 끝'); });
+
+  const fwd = new THREE.Vector3();
+  renderer.setAnimationLoop((time, frame) => {
+    if (frame) {
+      const seen = new Set();
+      for (const src of frame.session.inputSources) {
+        const side = src.handedness || 'none'; seen.add(side);
+        const fh = floorHit(frame, src), v = vis[side] || vis.none;
+        if (fh) {
+          const o = new THREE.Vector3(...fh.origin);
+          const end = fh.hit ? new THREE.Vector3(...fh.hit) : o.clone().add(new THREE.Vector3(...fh.dir).multiplyScalar(3));
+          v.l.geometry.setFromPoints([o, end]); v.l.visible = true;
+          v.ring.visible = !!fh.hit; if (fh.hit) v.ring.position.set(fh.hit[0], 0.003, fh.hit[2]);
+        } else v.l.visible = v.ring.visible = false;
+      }
+      for (const k of Object.keys(vis)) if (!seen.has(k)) vis[k].l.visible = vis[k].ring.visible = false;
+      const xc = renderer.xr.getCamera();
+      fwd.set(0, -0.35, -1).applyQuaternion(xc.quaternion);
+      hud.position.copy(xc.position).add(fwd);
+      hud.quaternion.copy(xc.quaternion);
+    }
+    renderer.render(scene, camera);
+  });
+}
+document.getElementById('acc').onclick = () => start('acc');
+document.getElementById('car').onclick = () => start('car');
+</script>
+</body>
+</html>
