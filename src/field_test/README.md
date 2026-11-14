@@ -3,7 +3,32 @@
 라즈봇 V2 + AiHand + PICO 4 Ultra를 한자리에 모아, 지금까지 시뮬레이션으로만 본 것을 실제로 확인합니다.
 팀원 노트북(윈도우)에서 받아서 바로 돌릴 수 있게 만들었습니다.
 
-**받는 법:** https://github.com/TaeHyun35/T1_PathFinder_Rep/archive/refs/heads/feat/field-test.zip 을 받아 풀고 `src\field_test` 폴더로 들어갑니다. (merge된 뒤에는 저장소 첫 화면 Code → Download ZIP)
+**받는 법:** https://github.com/TaeHyun35/T1_PathFinder_Rep/archive/refs/heads/main.zip 을 받아 풀고 `src\field_test` 폴더로 들어갑니다. (저장소 첫 화면 Code → Download ZIP과 같음)
+
+## AI 도우미(Claude 등)에게 맡길 때
+
+사람은 이렇게만 말하면 됩니다.
+
+> https://github.com/TaeHyun35/T1_PathFinder_Rep/tree/main/src/field_test 의 README를 읽고 "AI 도우미가 할 일" 순서대로 진행해 줘.
+
+### AI 도우미가 할 일
+
+이 노트북에서 오늘 로봇 실물 실험을 준비한다. 아래 순서대로 하고, 단계마다 결과를 사람에게 짧게 알려 준다.
+
+1. 저장소를 `C:\robot\T1_PathFinder_Rep`에 받는다. git이 있으면 `git clone https://github.com/TaeHyun35/T1_PathFinder_Rep.git C:\robot\T1_PathFinder_Rep`, 없으면 main.zip을 받아 `C:\robot`에 푼다.
+2. 이 README 전체를 읽고 실험 순서(0~6)를 파악한다.
+3. Python 3.11 이상이 있는지 확인한다. 없으면 설치 방법을 사람에게 알려 주고 기다린다.
+4. `src\field_test`에서 `install.bat`을 실행해 설치한다 (pyserial, cryptography만 설치, 1분).
+5. 이 노트북의 와이파이 IP 주소를 알려 준다 (`ipconfig`). VR 주소가 `https://<이 IP>:8443`이 된다.
+6. micro:bit가 꽂혀 있으면 COM 포트를 찾아 알려 준다.
+7. 사람이 원하면 `src\voice_pick\install.bat`도 백그라운드로 설치를 시작한다 (10분 이상, 인터넷 필요).
+8. 준비가 끝나면 "준비 완료"와 함께, 사람이 쓸 명령을 정리해 준다: `hand.bat`, `vr.bat`, `vr.bat --car <파이IP>`, 파이에서 `python3 car.py wheels`.
+
+지킬 것:
+- 저장소에 commit, push, 파일 수정을 하지 않는다. 받아서 쓰기만 한다.
+- 로봇(차, 손)을 움직이는 명령은 사람이 시킬 때만 실행한다.
+- 파이에 접속할 때 필요한 아이디와 비밀번호는 사람에게 직접 입력하게 한다.
+- 오류가 나면 README의 해당 단계와 화면 메시지를 보고 원인을 설명한 뒤, 고칠 방법을 제안한다.
 
 | 폴더 | 어디서 실행 | 하는 일 |
 | --- | --- | --- |
