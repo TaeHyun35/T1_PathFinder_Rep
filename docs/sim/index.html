@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>미로 탈출 시뮬레이션</title>
+<style>
+:root {
+  --bg: #f4f4f2; --panel: #ffffff; --ink: #1d1d1b; --ink2: #4a4a46; --muted: #85857f; --line: #e2e2dd;
+  --accent: #2f6fde; --good: #1f8a4c; --warn: #b7791f; --bad: #c9372c; --scene: #e9e9e5;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --panel: #1f1f1d; --ink: #ecece8; --ink2: #c2c2bc; --muted: #8a8a84; --line: #33332f;
+    --accent: #6b9bff; --good: #4cc27f; --warn: #e0a84a; --bad: #f0766b; --scene: #232321;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161615; --panel: #1f1f1d; --ink: #ecece8; --ink2: #c2c2bc; --muted: #8a8a84; --line: #33332f;
+  --accent: #6b9bff; --good: #4cc27f; --warn: #e0a84a; --bad: #f0766b; --scene: #232321;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+  font: 14px/1.45 "Pretendard", "Malgun Gothic", system-ui, sans-serif; }
+#app { display: grid; grid-template-columns: 330px 1fr; height: 100vh; }
+#side { overflow-y: auto; border-right: 1px solid var(--line); background: var(--panel); padding: 14px 16px 30px; }
+h1 { font-size: 17px; margin: 0 0 4px; }
+.sub { color: var(--muted); font-size: 12.5px; margin-bottom: 12px; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 10px; }
+button, select { font: inherit; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  border-radius: 7px; padding: 5px 10px; cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.on { outline: 2px solid var(--accent); }
+.row { display: flex; gap: 8px; align-items: center; margin: 4px 0; flex-wrap: wrap; }
+.row label { font-size: 13px; color: var(--ink2); }
+details { border-top: 1px solid var(--line); padding: 6px 0; }
+summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+.p { margin: 8px 0 10px; }
+.p .lab { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink2); }
+.p .lab b { color: var(--ink); font-weight: 600; }
+.p input[type=range] { width: 100%; accent-color: var(--accent); }
+.p select { width: 100%; }
+.p .help { font-size: 11.5px; color: var(--muted); }
+.keys { font-size: 12px; color: var(--ink2); background: var(--bg); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+.keys kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; background: var(--panel); font-size: 11px; }
+#main { position: relative; overflow: hidden; background: var(--scene); }
+#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.card { position: absolute; background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 12px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+#hud { top: 12px; left: 12px; width: 300px; font-size: 13px; }
+#hud .phase { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+#hud .kv { display: grid; grid-template-columns: 92px 1fr; gap: 2px 8px; }
+#hud .kv span:nth-child(odd) { color: var(--muted); }
+.chip { display: inline-block; border-radius: 5px; padding: 0 6px; margin: 1px 3px 1px 0; font-size: 12px; color: #fff; }
+.chip.off { background: transparent !important; color: var(--muted); border: 1px dashed var(--line); }
+#mapbox { right: 12px; bottom: 12px; padding: 8px; }
+#mapbox .t, #pipbox .t { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+#map { display: block; }
+#pipbox { right: 12px; top: 12px; padding: 8px; }
+#pip { width: 270px; height: 180px; display: block; }
+#log { left: 12px; bottom: 12px; width: 380px; max-height: 210px; overflow-y: auto; font-size: 12.5px; }
+#log div { padding: 2px 0; border-bottom: 1px dashed var(--line); }
+#log .w { color: var(--warn); } #log .b { color: var(--bad); } #log .g { color: var(--good); }
+#err { display: none; position: absolute; inset: 40% 20% auto; text-align: center; }
+@media (max-width: 900px) {
+  #app { grid-template-columns: 1fr; grid-template-rows: auto 70vh; height: auto; }
+  #side { border-right: 0; border-bottom: 1px solid var(--line); }
+  #main { height: 70vh; }
+  #pipbox, #log { display: none; }
+  #hud { width: auto; right: 12px; }
+}
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <h1>미로 탈출 시뮬레이션</h1>
+    <div class="sub">11/14 회의 시나리오: 미로를 돌며 색-숫자 단서를 찾고, 순서 단서대로 비밀번호를 만들어 손가락으로 키패드를 누르면 문이 열려요. 크기는 실제 재료 기준(m)이에요.</div>
+    <div class="btns">
+      <button id="bRun" class="primary">▶ 시작</button>
+      <button id="bReset">↺ 처음부터</button>
+      <button id="bNew">새 미로</button>
+      <button id="bManual">직접 운전</button>
+    </div>
+    <div class="row">
+      <label>빠르기</label>
+      <select id="sSpeed"><option value="1">1배</option><option value="2">2배</option><option value="4" selected>4배</option><option value="8">8배</option><option value="16">16배</option></select>
+      <label>보기</label>
+      <select id="sView"><option value="orbit">전체 (마우스로 돌리기)</option><option value="follow">차 따라가기</option><option value="top">위에서</option><option value="robot">로봇 카메라</option></select>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="cRays" checked> 라이다 광선</label>
+      <label><input type="checkbox" id="cCone" checked> 카메라 시야</label>
+      <button id="bDefault" style="margin-left:auto">기본값</button>
+    </div>
+    <div id="params"></div>
+    <div class="keys">
+      <b>직접 운전</b> (버튼을 켠 뒤)<br>
+      <kbd>W</kbd><kbd>S</kbd> 앞·뒤 &nbsp; <kbd>A</kbd><kbd>D</kbd> 제자리 회전 &nbsp; <kbd>Q</kbd><kbd>E</kbd> 옆으로 (메카넘)<br>
+      <kbd>1</kbd>~<kbd>4</kbd> 검지·중지·약지·새끼 누르기 &nbsp; <kbd>Z</kbd><kbd>X</kbd> 카메라 좌우
+    </div>
+  </aside>
+  <main id="main">
+    <canvas id="view"></canvas>
+    <div id="hud" class="card"></div>
+    <div id="pipbox" class="card"><div class="t">로봇 카메라 (카메라 모듈 3 시점)</div><canvas id="pip"></canvas></div>
+    <div id="mapbox" class="card"><div class="t">라이다로 만든 2D 지도</div><canvas id="map"></canvas></div>
+    <div id="log" class="card"></div>
+    <div id="err" class="card">3D 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.</div>
+  </main>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------------------------------------------------------------- 설정
+const PARAMS = [
+  { key: 'cw', label: '통로 폭', unit: 'm', min: 0.35, max: 0.8, step: 0.05, def: 0.5, group: '미로', rebuild: 1, help: '회의록 기준 약 50cm. 바닥 4.5m × 2m를 이 폭의 칸으로 나눠요' },
+  { key: 'orient', label: '우드락 세우는 방향', type: 'select', def: 'lay', group: '미로', rebuild: 1,
+    options: [['lay', '눕혀서: 벽 높이 60cm, 1장 = 벽 90cm'], ['stand', '세워서: 벽 높이 90cm, 1장 = 벽 60cm']] },
+  { key: 'sheets', label: '우드락 장수', unit: '장', min: 10, max: 40, step: 1, def: 20, group: '미로', rebuild: 1, help: '모자라면 안쪽 벽을 빼서 맞춰요 (그만큼 길이 여러 갈래가 돼요)' },
+  { key: 'seed', label: '미로 번호', unit: '', min: 1, max: 999, step: 1, def: 1, group: '미로', rebuild: 1 },
+  { key: 'clueN', label: '색-숫자 단서 개수', unit: '개', min: 2, max: 4, step: 1, def: 3, group: '미로', rebuild: 1, help: '비밀번호 자릿수와 같아요' },
+  { key: 'carL', label: '차체 길이 (손 빼고)', unit: 'm', min: 0.15, max: 0.35, step: 0.01, def: 0.23, group: '차와 손', rebuild: 1, help: '잰 값: 손 포함 전체 42cm. 차체 길이는 어림값이라, 재면 바꿔 주세요 (차체 + 손 = 42cm)' },
+  { key: 'carW', label: '차 폭', unit: 'm', min: 0.12, max: 0.3, step: 0.01, def: 0.16, help: '잰 값 16cm', group: '차와 손', rebuild: 1 },
+  { key: 'handP', label: '손이 차 앞으로 튀어나온 길이', unit: 'm', min: 0.05, max: 0.3, step: 0.01, def: 0.19, group: '차와 손', rebuild: 1 },
+  { key: 'handW', label: '손 폭', unit: 'm', min: 0.06, max: 0.14, step: 0.005, def: 0.09, group: '차와 손', rebuild: 1 },
+  { key: 'handH', label: '바닥에서 손가락까지 높이', unit: 'm', min: 0.05, max: 0.3, step: 0.01, def: 0.12, group: '차와 손', rebuild: 1, help: '키패드 높이가 여기에 맞춰져요' },
+  { key: 'move', label: '움직이는 방식', type: 'select', def: 'turn', group: '차와 손',
+    options: [['turn', '돌아서 직진, 못 돌면 옆으로 (추천)'], ['strafe', '항상 같은 방향, 옆·뒤로만 이동 (메카넘)']], help: '어느 방식이든 손이 벽에 닿는 움직임은 하지 않고 멈춰요. 차+손이 길어서 방향 고정 방식은 좁은 곳에서 막히기 쉬워요' },
+  { key: 'speed', label: '주행 속도', unit: 'm/s', min: 0.05, max: 0.5, step: 0.05, def: 0.2, group: '차와 손' },
+  { key: 'turn', label: '회전 속도', unit: '도/초', min: 30, max: 180, step: 10, def: 90, group: '차와 손' },
+  { key: 'lidarH', label: '라이다 높이', unit: 'm', min: 0.1, max: 0.8, step: 0.01, def: 0.28, group: '센서', rebuild: 1, help: '잰 높이 25cm 위에 올린다고 보고 28cm. 벽보다 높으면 벽을 못 봐요' },
+  { key: 'lidarR', label: '라이다 거리', unit: 'm', min: 1, max: 12, step: 0.5, def: 6, group: '센서', help: 'RPLIDAR A1은 최대 12m' },
+  { key: 'camR', label: '카메라 단서 인식 거리', unit: 'm', min: 0.2, max: 2.5, step: 0.1, def: 1.0, group: '센서', help: '이보다 멀면 카드 글자를 못 읽는다고 봐요' },
+  { key: 'camFov', label: '카메라 시야각', unit: '도', min: 40, max: 120, step: 1, def: 66, group: '센서', help: '카메라 모듈 3 기본 렌즈 약 66도' },
+  { key: 'camH', label: '카메라 높이 (단서 카드 높이)', unit: 'm', min: 0.08, max: 0.4, step: 0.01, def: 0.17, group: '센서', rebuild: 1 },
+  { key: 'fingerGap', label: '손가락 끝 사이 간격', unit: 'mm', min: 12, max: 30, step: 0.5, def: 22, group: '키패드', help: '자로 잰 값으로 바꾸세요' },
+  { key: 'keyGap', label: '키 사이 간격', unit: 'mm', min: 15, max: 30, step: 0.5, def: 19, group: '키패드', rebuild: 1, help: '일반 키보드는 19mm' },
+  { key: 'dockErr', label: '키패드 앞에 멈출 때 옆으로 틀어지는 정도', unit: '±mm', min: 0, max: 30, step: 1, def: 8, group: '키패드', help: '크면 엉뚱한 키를 누를 수 있어요' },
+];
+const FLOOR_W = 4.5, FLOOR_D = 2.0, KD = 0.06, CAP = 0.009;
+const COLORS = [{ n: '빨강', h: '#e5484d' }, { n: '파랑', h: '#3e63dd' }, { n: '초록', h: '#30a46c' }, { n: '노랑', h: '#e9b80c' }];
+const FINGER = ['검지', '중지', '약지', '새끼'];
+
+const P = {};
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem('maze3d_v2') || '{}'); } catch (e) { saved = {}; }
+for (const p of PARAMS) P[p.key] = saved[p.key] ?? p.def;
+function saveP() { try { localStorage.setItem('maze3d_v2', JSON.stringify(P)); } catch (e) {} }
+
+const $ = (id) => document.getElementById(id);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmt = (v, s) => s >= 1 ? String(Math.round(v)) : (+v).toFixed(String(s).split('.')[1]?.length || 2);
+
+function buildForm() {
+  const groups = {};
+  for (const p of PARAMS) (groups[p.group] ||= []).push(p);
+  let h = '';
+  for (const [g, list] of Object.entries(groups)) {
+    h += `<details ${g === '미로' || g === '차와 손' ? 'open' : ''}><summary>${g}</summary>`;
+    for (const p of list) {
+      if (p.type === 'select') {
+        h += `<div class="p"><div class="lab">${p.label}</div><select data-k="${p.key}">` +
+          p.options.map(([v, t]) => `<option value="${v}" ${P[p.key] === v ? 'selected' : ''}>${t}</option>`).join('') + `</select>`;
+      } else {
+        h += `<div class="p"><div class="lab">${p.label}<b id="v-${p.key}">${fmt(P[p.key], p.step)} ${p.unit}</b></div>` +
+          `<input type="range" data-k="${p.key}" min="${p.min}" max="${p.max}" step="${p.step}" value="${P[p.key]}">`;
+      }
+      if (p.help) h += `<div class="help">${p.help}</div>`;
+      h += `</div>`;
+    }
+    h += `</details>`;
+  }
+  $('params').innerHTML = h;
+  $('params').querySelectorAll('[data-k]').forEach((el) => {
+    el.addEventListener('input', () => {
+      const p = PARAMS.find((q) => q.key === el.dataset.k);
+      P[p.key] = p.type === 'select' ? el.value : +el.value;
+      if (p.type !== 'select') $('v-' + p.key).textContent = `${fmt(P[p.key], p.step)} ${p.unit}`;
+      saveP();
+      if (p.rebuild) reset(); else if (p.key === 'camFov') updateRobotCam();
+    });
+  });
+}
+
+// ---------------------------------------------------------------- 도구
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function shuffle(a, rng) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const wrap = (a) => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
+const cross = (ax, az, bx, bz) => ax * bz - az * bx;
+// 앞 = (cos θ, -sin θ), 오른쪽(로컬 +z) = (sin θ, cos θ)  (three.js rotation.y = θ 와 같음)
+const l2w = (px, pz, th, lx, lz) => ({ x: px + lx * Math.cos(th) + lz * Math.sin(th), z: pz - lx * Math.sin(th) + lz * Math.cos(th) });
+const headingTo = (dx, dz) => Math.atan2(-dz, dx);
+
+function raySeg(ox, oz, dx, dz, s) {
+  const ex = s.x2 - s.x1, ez = s.z2 - s.z1, den = cross(dx, dz, ex, ez);
+  if (Math.abs(den) < 1e-12) return Infinity;
+  const ax = s.x1 - ox, az = s.z1 - oz;
+  const t = cross(ax, az, ex, ez) / den, u = cross(ax, az, dx, dz) / den;
+  return t >= 0 && u >= -1e-9 && u <= 1 + 1e-9 ? t : Infinity;
+}
+function segSeg(p1x, p1z, p2x, p2z, s) {
+  const dx = p2x - p1x, dz = p2z - p1z, ex = s.x2 - s.x1, ez = s.z2 - s.z1, den = cross(dx, dz, ex, ez);
+  if (Math.abs(den) < 1e-12) return false;
+  const ax = s.x1 - p1x, az = s.z1 - p1z;
+  const t = cross(ax, az, ex, ez) / den, u = cross(ax, az, dx, dz) / den;
+  return t > 0 && t < 1 && u >= 0 && u <= 1;
+}
+function inPoly(x, z, poly) {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j];
+    if ((a.z > z) !== (b.z > z) && x < (b.x - a.x) * (z - a.z) / (b.z - a.z) + a.x) c = !c;
+  }
+  return c;
+}
+
+// ---------------------------------------------------------------- 3D 기본
+const canvas = $('view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(45, 1, 0.02, 60);
+cam.position.set(0, 4.2, 3.6);
+const controls = new OrbitControls(cam, canvas);
+controls.target.set(0, 0, 0);
+controls.enableDamping = true;
+const pipCanvas = $('pip');
+const pipRenderer = new THREE.WebGLRenderer({ canvas: pipCanvas, antialias: true });
+pipRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+pipRenderer.setSize(270, 180, false);
+const robotCam = new THREE.PerspectiveCamera(40, 1.5, 0.01, 20);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x666655, 1.4));
+const sun = new THREE.DirectionalLight(0xffffff, 1.4);
+sun.position.set(2, 5, 3);
+scene.add(sun);
+let world = new THREE.Group();
+scene.add(world);
+
+function mat(c, o = {}) { return new THREE.MeshStandardMaterial({ color: c, roughness: 0.8, ...o }); }
+function box(w, h, d, m) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); }
+function texCanvas(draw, w = 128, h = 128) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+
+// ---------------------------------------------------------------- 상태
+let S;            // 시뮬레이션 상태 전체
+let running = false, manual = false;
+const keysDown = new Set();
+
+function log(text, cls = '') {
+  S.logs.unshift({ t: S.time, text, cls });
+  S.logs.length = Math.min(S.logs.length, 60);
+  $('log').innerHTML = S.logs.map((l) => `<div class="${l.cls}">[${l.t.toFixed(1)}초] ${l.text}</div>`).join('');
+}
+
+function reset() {
+  running = false; $('bRun').textContent = '▶ 시작';
+  scene.remove(world); world = new THREE.Group(); scene.add(world);
+  S = { time: 0, logs: [], queue: [], state: 'explore', attempts: 0, typed: [], collisions: 0, inHit: false, hitFlash: 0,
+    trail: [], blocked: new Set(), lidarT: 0, covT: 0, doorAng: 0, doorTarget: 0, done: false, pan: 0, press: null };
+  buildMaze();
+  buildCar();
+  buildMapGrid();
+  checkGeometry();
+  updateRobotCam();
+  drawHud(); drawMap();
+}
+
+// ---------------------------------------------------------------- 미로 만들기
+function buildMaze() {
+  const cw = P.cw;
+  const cols = Math.floor(FLOOR_W / cw + 1e-6), rows = Math.floor(FLOOR_D / cw + 1e-6);
+  const x0 = -cols * cw / 2, z0 = -rows * cw / 2;
+  const rng = mulberry32(P.seed * 7919 + cols * 31 + rows);
+  const Hw = Array.from({ length: rows + 1 }, () => Array(cols).fill(true));
+  const Vw = Array.from({ length: rows }, () => Array(cols + 1).fill(true));
+  const sr = Math.floor(rng() * rows), dr = Math.floor(rng() * rows);
+  // 길 파기 (깊이 우선)
+  const seen = Array.from({ length: rows }, () => Array(cols).fill(false));
+  const st = [[sr, 0]]; seen[sr][0] = true;
+  while (st.length) {
+    const [r, c] = st[st.length - 1];
+    const nb = shuffle([[0, 1], [0, -1], [1, 0], [-1, 0]], rng).filter(([a, b]) => r + a >= 0 && r + a < rows && c + b >= 0 && c + b < cols && !seen[r + a][c + b]);
+    if (!nb.length) { st.pop(); continue; }
+    const [a, b] = nb[0], nr = r + a, nc = c + b;
+    if (a === 1) Hw[r + 1][c] = false; else if (a === -1) Hw[r][c] = false;
+    else if (b === 1) Vw[r][c + 1] = false; else Vw[r][c] = false;
+    seen[nr][nc] = true; st.push([nr, nc]);
+  }
+  // 우드락 장수에 맞추기: 넘치면 안쪽 벽을 뺀다
+  const sheetLen = P.orient === 'lay' ? 0.9 : 0.6, wallH = P.orient === 'lay' ? 0.6 : 0.9;
+  const inner = [];
+  for (let r = 1; r < rows; r++) for (let c = 0; c < cols; c++) if (Hw[r][c]) inner.push(['H', r, c]);
+  for (let r = 0; r < rows; r++) for (let c = 1; c < cols; c++) if (Vw[r][c]) inner.push(['V', r, c]);
+  shuffle(inner, rng);
+  const perim = 2 * (rows + cols) * cw - cw;           // 문 자리는 우드락이 아님
+  let total = perim + inner.length * cw, removed = 0;
+  const budget = P.sheets * sheetLen;
+  while (total > budget + 1e-9 && inner.length) {
+    const [t, r, c] = inner.pop(); if (t === 'H') Hw[r][c] = false; else Vw[r][c] = false;
+    total -= cw; removed++;
+  }
+  // 벽 선분
+  const segs = [], segMap = {};
+  const addSeg = (type, r, c, x1, z1, x2, z2, kind) => {
+    const s = { id: segs.length, type, r, c, x1, z1, x2, z2, kind, known: false, faces: [] };
+    segs.push(s); segMap[`${type}${r},${c}`] = s; return s;
+  };
+  for (let r = 0; r <= rows; r++) for (let c = 0; c < cols; c++) if (Hw[r][c]) {
+    const z = z0 + r * cw, s = addSeg('H', r, c, x0 + c * cw, z, x0 + (c + 1) * cw, z, 'wall');
+    if (r > 0) s.faces.push({ seg: s, r: r - 1, c, nx: 0, nz: -1, x: x0 + (c + .5) * cw, z: z - 0.004 });
+    if (r < rows) s.faces.push({ seg: s, r, c, nx: 0, nz: 1, x: x0 + (c + .5) * cw, z: z + 0.004 });
+  }
+  for (let r = 0; r < rows; r++) for (let c = 0; c <= cols; c++) if (Vw[r][c]) {
+    const x = x0 + c * cw, door = c === cols && r === dr;
+    const s = addSeg('V', r, c, x, z0 + r * cw, x, z0 + (r + 1) * cw, door ? 'door' : 'wall');
+    if (c > 0) s.faces.push({ seg: s, r, c: c - 1, nx: -1, nz: 0, x: x - 0.004, z: z0 + (r + .5) * cw });
+    if (c < cols) s.faces.push({ seg: s, r, c, nx: 1, nz: 0, x: x + 0.004, z: z0 + (r + .5) * cw });
+  }
+  const faces = segs.flatMap((s) => s.faces);
+  for (const f of faces) { f.covered = false; f.tried = false; f.card = null; }
+
+  // 단서 카드
+  const used = shuffle(COLORS.slice(), rng).slice(0, P.clueN);
+  const cand = shuffle(faces.filter((f) => f.seg.kind === 'wall' && !(f.r === sr && f.c === 0) && !(f.r === dr && f.c === cols - 1)), rng);
+  const cards = [], usedCells = new Set();
+  for (const f of cand) {
+    if (cards.length >= P.clueN + 1) break;
+    const key = f.r + ',' + f.c; if (usedCells.has(key)) continue; usedCells.add(key);
+    cards.push(f);
+  }
+  const pairs = used.map((col, i) => ({ kind: 'pair', color: col, num: 1 + Math.floor(rng() * 4), face: cards[i], found: false }));
+  const order = shuffle(used.slice(), rng);
+  const final = { kind: 'order', order, face: cards[P.clueN], found: false };
+  const clues = [...pairs, final].filter((c) => c.face);
+  for (const c of clues) c.face.card = c;
+  const password = order.map((col) => pairs.find((p) => p.color === col).num);
+
+  Object.assign(S, { cw, cols, rows, x0, z0, sr, dr, Hw, Vw, segs, segMap, faces, clues, pairs, final, password,
+    wallH, sheetLen, wallLen: total, removed, budget, doorX: x0 + cols * cw, doorZ: z0 + (dr + .5) * cw,
+    visited: Array.from({ length: rows }, () => Array(cols).fill(false)) });
+
+  // ---- 3D: 바닥 (고무매트 5장 0.9m × 2m)
+  const floor = box(FLOOR_W, 0.002, FLOOR_D, mat(0x2d2d2b));
+  floor.position.y = -0.001; world.add(floor);
+  const outer = new THREE.Mesh(new THREE.PlaneGeometry(9, 6), mat(0xbfbfb8));
+  outer.rotation.x = -Math.PI / 2; outer.position.y = -0.003; world.add(outer);
+  const seamM = new THREE.LineBasicMaterial({ color: 0x555550 });
+  for (let i = 1; i < 5; i++) {
+    const x = -FLOOR_W / 2 + i * 0.9;
+    world.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, 0.001, -FLOOR_D / 2), new THREE.Vector3(x, 0.001, FLOOR_D / 2)]), seamM));
+  }
+  // 우드락 벽
+  const wm = mat(0xf7f7f2, { roughness: 0.95 });
+  for (const s of segs) {
+    if (s.kind !== 'wall') continue;
+    const len = Math.hypot(s.x2 - s.x1, s.z2 - s.z1);
+    const m = s.type === 'H' ? box(len + 0.005, wallH, 0.005, wm) : box(0.005, wallH, len + 0.005, wm);
+    m.position.set((s.x1 + s.x2) / 2, wallH / 2, (s.z1 + s.z2) / 2); world.add(m);
+  }
+  // 문 + 키패드
+  const doorG = new THREE.Group();
+  doorG.position.set(S.doorX, 0, z0 + dr * cw);          // 경첩 (북쪽 끝)
+  const dm = box(0.012, wallH, cw - 0.004, mat(0xa0703f));
+  dm.position.set(0, wallH / 2, cw / 2); doorG.add(dm);
+  const kw = 4 * P.keyGap / 1000 + 0.024, keyTop = P.handH - 0.012;
+  const base = box(KD, keyTop - 0.012, kw, mat(0x3a3a3a));
+  base.position.set(-KD / 2, (keyTop - 0.012) / 2, cw / 2); doorG.add(base);
+  S.keyMeshes = [];
+  for (let j = 0; j < 4; j++) {
+    const t = texCanvas((g, w, h) => { g.fillStyle = '#f2f2ee'; g.fillRect(0, 0, w, h); g.fillStyle = '#222'; g.font = 'bold 80px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(j + 1), w / 2, h / 2 + 4); });
+    const mats = [mat(0xe8e8e4), mat(0xe8e8e4), new THREE.MeshStandardMaterial({ map: t }), mat(0xe8e8e4), mat(0xe8e8e4), mat(0xe8e8e4)];
+    const k = new THREE.Mesh(new THREE.BoxGeometry(0.017, 0.012, 0.017), mats);
+    k.position.set(-KD / 2, keyTop - 0.006, cw / 2 + (j - 1.5) * P.keyGap / 1000);
+    k.rotation.y = -Math.PI / 2;
+    doorG.add(k); S.keyMeshes.push(k);
+  }
+  world.add(doorG); S.doorG = doorG;
+  // 단서 카드
+  for (const c of clues) {
+    const t = texCanvas((g, w, h) => {
+      if (c.kind === 'pair') {
+        g.fillStyle = c.color.h; g.fillRect(0, 0, w, h);
+        g.fillStyle = '#fff'; g.beginPath(); g.arc(w / 2, h / 2, 42, 0, 7); g.fill();
+        g.fillStyle = '#111'; g.font = 'bold 64px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(c.num), w / 2, h / 2 + 3);
+      } else {
+        g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.fillStyle = '#111'; g.font = 'bold 22px sans-serif'; g.textAlign = 'center'; g.fillText('순서', w / 2, 26);
+        const n = c.order.length, bw = (w - 16) / n;
+        c.order.forEach((col, i) => { g.fillStyle = col.h; g.fillRect(8 + i * bw + 3, 44, bw - 6, 66); });
+      }
+    });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.1), new THREE.MeshStandardMaterial({ map: t, side: THREE.DoubleSide }));
+    const f = c.face;
+    m.position.set(f.x + f.nx * 0.002, P.camH, f.z + f.nz * 0.002);
+    m.rotation.y = Math.atan2(f.nx, f.nz);
+    world.add(m);
+  }
+  // 출발 표시
+  const startM = box(cw * 0.6, 0.002, cw * 0.6, mat(0x2f6fde, { transparent: true, opacity: 0.35 }));
+  startM.position.set(x0 + 0.5 * cw, 0.002, z0 + (sr + .5) * cw); world.add(startM);
+}
+
+// ---------------------------------------------------------------- 차 + 손
+function buildCar() {
+  const L = P.carL, W = P.carW, Hp = P.handP;
+  const g = new THREE.Group();
+  const bodyM = mat(0x2a2a2a, { emissive: 0x000000 });
+  const body = box(L, 0.07, W - 0.05, bodyM); body.position.y = 0.065; g.add(body);
+  const top = box(L * 0.9, 0.01, W - 0.06, mat(0x111111)); top.position.y = 0.105; g.add(top);
+  const wm = mat(0xf2c200);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.033, 0.025, 20), wm);
+    w.rotation.x = Math.PI / 2; w.position.set(sx * (L / 2 - 0.04), 0.033, sz * (W / 2 - 0.0125)); g.add(w);
+  }
+  // 라이다 (기둥 위)
+  const mast = box(0.015, Math.max(0.01, P.lidarH - 0.11), 0.015, mat(0x777777));
+  mast.position.set(-L * 0.15, 0.11 + (P.lidarH - 0.11) / 2, 0); g.add(mast);
+  const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.038, 0.04, 24), mat(0x151515));
+  lid.position.set(-L * 0.15, P.lidarH, 0); g.add(lid);
+  // 팬틸트 카메라
+  const camMast = box(0.012, Math.max(0.01, P.camH - 0.11), 0.012, mat(0x777777));
+  camMast.position.set(L / 2 - 0.03, 0.11 + (P.camH - 0.11) / 2, 0); g.add(camMast);
+  const panG = new THREE.Group(); panG.position.set(L / 2 - 0.03, P.camH, 0); g.add(panG);
+  const camBox = box(0.025, 0.025, 0.03, mat(0x1b5e20)); panG.add(camBox);
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.006, 12), mat(0x000000));
+  lens.rotation.z = Math.PI / 2; lens.position.x = 0.015; panG.add(lens);
+  // 손 (손바닥이 아래, 앞으로)
+  const handG = new THREE.Group(); handG.position.set(L / 2, P.handH, 0); g.add(handG);
+  const skin = mat(0x3b3b3b), joint = mat(0x9a9a9a);
+  const bracket = box(0.03, Math.abs(P.handH - 0.1) + 0.02, 0.03, joint);
+  bracket.position.set(0.0, (0.1 - P.handH) / 2, 0); handG.add(bracket);
+  const palmL = Hp * 0.5;
+  const palm = box(palmL, 0.03, P.handW, skin); palm.position.set(palmL / 2, 0.012, 0); handG.add(palm);
+  const fl = Hp * 0.5;
+  S.fingers = [];
+  for (let i = 0; i < 4; i++) {
+    const pv = new THREE.Group(); pv.position.set(palmL, 0.008, (i - 1.5) * P.fingerGap / 1000);
+    const f = box(fl, 0.015, 0.014, i === 0 ? mat(0x2f6fde) : skin); f.position.set(fl / 2, 0, 0); pv.add(f);
+    handG.add(pv); S.fingers.push(pv);
+  }
+  const th = box(fl * 0.7, 0.015, 0.016, skin);
+  th.position.set(palmL * 0.6, -0.01, -P.handW / 2 - 0.01); th.rotation.y = 0.5; handG.add(th);
+  world.add(g);
+  // 카메라 시야 부채꼴, 라이다 광선
+  const cone = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0x2f6fde, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }));
+  world.add(cone);
+  const rays = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xe5484d, transparent: true, opacity: 0.35 }));
+  world.add(rays);
+  Object.assign(S, { carG: g, bodyM, panG, handG, cone, rays,
+    x: S.x0 + 0.5 * S.cw, z: S.z0 + (S.sr + .5) * S.cw, th: 0, cell: [S.sr, 0] });
+  // 출발 칸 가운데서 손이 벽에 닿으면, 닿지 않는 가장 가까운 자리에서 출발
+  if (collides(S.x, S.z, S.th)) {
+    const cx = S.x, cz = S.z, half = S.cw / 2; let best = null;
+    for (const th of [0, Math.PI / 2, -Math.PI / 2, Math.PI])
+      for (let dx = -half; dx <= half + 1e-9; dx += 0.01) for (let dz = -half; dz <= half + 1e-9; dz += 0.01) {
+        const d = Math.hypot(dx, dz) + (th ? 1 : 0);
+        if ((!best || d < best.d) && !collides(cx + dx, cz + dz, th)) best = { x: cx + dx, z: cz + dz, th, d };
+      }
+    if (best) Object.assign(S, { x: best.x, z: best.z, th: best.th });
+  }
+  S.trail = [[S.x, S.z]];
+}
+
+function checkGeometry() {
+  const L = P.carL, rHand = Math.hypot(L / 2 + P.handP, P.handW / 2), rBody = Math.hypot(L / 2, P.carW / 2), half = S.cw / 2;
+  log(`미로 ${S.cols}×${S.rows}칸 (칸 ${Math.round(S.cw * 100)}cm). 우드락 벽 ${S.wallLen.toFixed(1)}m = ${Math.ceil(S.wallLen / S.sheetLen - 1e-9)}장 사용 (가진 것 ${P.sheets}장)`);
+  if (S.removed) log(`우드락이 모자라서 안쪽 벽 ${S.removed}개(${(S.removed * S.cw).toFixed(1)}m)를 뺐어요. 그래서 길이 여러 갈래로 뚫려 있어요`, 'w');
+  if (S.wallLen > S.budget + 1e-9) log(`테두리만 해도 우드락 ${Math.ceil(S.wallLen / S.sheetLen)}장이 필요해요 (가진 것 ${P.sheets}장)`, 'b');
+  if (P.carW > S.cw - 0.04) log(`차 폭 ${Math.round(P.carW * 100)}cm가 통로 ${Math.round(S.cw * 100)}cm에 비해 너무 넓어요`, 'b');
+  if (rHand > half) log(`제자리에서 돌면 손끝이 그리는 원(반지름 ${Math.round(rHand * 100)}cm)이 통로 반폭 ${Math.round(half * 100)}cm보다 커서 벽에 닿아요. 통로를 ${Math.ceil(rHand * 200)}cm 이상으로 하거나 '메카넘' 방식을 써 보세요`, 'w');
+  else if (rBody > half) log('제자리에서 돌면 차 모서리가 벽에 닿을 수 있어요', 'w');
+  if (P.lidarH >= S.wallH) log(`라이다(${Math.round(P.lidarH * 100)}cm)가 벽(${Math.round(S.wallH * 100)}cm)보다 높아서 벽을 못 봐요`, 'b');
+  log(`단서 ${S.pairs.length}개 + 순서 카드 1개를 숨겼어요. 정답은 시작하면 찾아야 알 수 있어요`);
+}
+
+// ---------------------------------------------------------------- 2D 지도 (라이다)
+function buildMapGrid() {
+  const res = 0.025, mx = FLOOR_W + 1, mz = FLOOR_D + 1;
+  S.grid = { res, ox: -mx / 2, oz: -mz / 2, nx: Math.round(mx / res), nz: Math.round(mz / res) };
+  S.grid.v = new Int8Array(S.grid.nx * S.grid.nz);        // 0 모름, 1 빈 곳, 2 벽
+  const mc = $('map'), scale = Math.min(330 / mx, 160 / mz);
+  mc.width = Math.round(mx * scale); mc.height = Math.round(mz * scale); S.mapScale = scale;
+}
+function activeSegs() { return S.segs.filter((s) => !(s.kind === 'door' && S.doorAng > 0.15)); }
+function lidarScan() {
+  const lp = l2w(S.x, S.z, S.th, -P.carL * 0.15, 0), G = S.grid;
+  const segs = P.lidarH < S.wallH ? activeSegs() : [];
+  const pos = [];
+  for (let k = 0; k < 180; k++) {
+    const a = S.th + k * 2 * Math.PI / 180, dx = Math.cos(a), dz = -Math.sin(a);
+    let best = P.lidarR, hit = null;
+    for (const s of segs) { const t = raySeg(lp.x, lp.z, dx, dz, s); if (t < best) { best = t; hit = s; } }
+    for (let d = 0; d < best - G.res * 0.6; d += G.res) {
+      const gx = Math.floor((lp.x + dx * d - G.ox) / G.res), gz = Math.floor((lp.z + dz * d - G.oz) / G.res);
+      if (gx >= 0 && gz >= 0 && gx < G.nx && gz < G.nz && G.v[gz * G.nx + gx] !== 2) G.v[gz * G.nx + gx] = 1;
+    }
+    if (hit) {
+      hit.known = true;
+      const gx = Math.floor((lp.x + dx * best - G.ox) / G.res), gz = Math.floor((lp.z + dz * best - G.oz) / G.res);
+      if (gx >= 0 && gz >= 0 && gx < G.nx && gz < G.nz) G.v[gz * G.nx + gx] = 2;
+    }
+    if (k % 2 === 0) pos.push(lp.x, P.lidarH, lp.z, lp.x + dx * best, P.lidarH, lp.z + dz * best);
+  }
+  S.rays.geometry.dispose();
+  S.rays.geometry = new THREE.BufferGeometry();
+  S.rays.geometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+}
+
+// ---------------------------------------------------------------- 카메라 (단서 인식)
+function camPose() {
+  const p = l2w(S.x, S.z, S.th, P.carL / 2 - 0.02, 0);
+  return { x: p.x, z: p.z, h: S.th + S.pan };
+}
+function sees(f, cp) {
+  const vx = f.x - cp.x, vz = f.z - cp.z, d = Math.hypot(vx, vz);
+  if (d > P.camR || d < 0.03) return false;
+  if (Math.abs(wrap(headingTo(vx, vz) - cp.h)) > P.camFov * Math.PI / 360) return false;
+  if (-(vx * f.nx + vz * f.nz) / d < 0.26) return false;               // 너무 비스듬하면 못 읽음 (75도)
+  const tx = f.x + f.nx * 0.01, tz = f.z + f.nz * 0.01;
+  for (const s of activeSegs()) if (s !== f.seg && segSeg(cp.x, cp.z, tx, tz, s)) return false;
+  return true;
+}
+function coverage() {
+  const cp = camPose();
+  for (const f of S.faces) {
+    if (f.covered || (f.seg.kind === 'door' && S.doorAng > 0.15)) continue;
+    if (!sees(f, cp)) continue;
+    f.covered = true;
+    const c = f.card;
+    if (c && !c.found) {
+      c.found = true;
+      if (c.kind === 'pair') log(`단서 발견: ${c.color.n} - ${c.num}`, 'g');
+      else log(`순서 단서 발견: ${c.order.map((o) => o.n).join(' → ')}`, 'g');
+      if (S.clues.every((q) => q.found)) log(`비밀번호 완성: ${S.password.join('-')} (색 순서대로 숫자를 이음)`, 'g');
+    }
+    if (f.seg.kind === 'door' && !S.doorSeen) { S.doorSeen = true; log('문과 키패드를 찾았어요', 'g'); }
+  }
+}
+
+// ---------------------------------------------------------------- 길 찾기 (칸 단위)
+const DIRS = [[0, 1, 0], [-1, 0, Math.PI / 2], [0, -1, Math.PI], [1, 0, -Math.PI / 2]];   // [dr, dc, heading]
+function edgeSeg(r, c, d) {
+  if (d === 0) return S.segMap[`V${r},${c + 1}`]; if (d === 2) return S.segMap[`V${r},${c}`];
+  if (d === 1) return S.segMap[`H${r},${c}`]; return S.segMap[`H${r + 1},${c}`];
+}
+function passable(r, c, d) {
+  const nr = r + DIRS[d][0], nc = c + DIRS[d][1];
+  if (nr < 0 || nc < 0 || nr >= S.rows || nc >= S.cols) return false;
+  if (S.blocked.has(r + ',' + c + '>' + nr + ',' + nc)) return false;
+  const s = edgeSeg(r, c, d); return !(s && s.known);      // 아직 모르는 벽은 지나갈 수 있다고 가정
+}
+function cellOf(x, z) { return [Math.min(S.rows - 1, Math.max(0, Math.floor((z - S.z0) / S.cw))), Math.min(S.cols - 1, Math.max(0, Math.floor((x - S.x0) / S.cw)))]; }
+const center = (r, c) => ({ x: S.x0 + (c + .5) * S.cw, z: S.z0 + (r + .5) * S.cw });
+function bfs(r0, c0, goal) {
+  const prev = new Map([[r0 + ',' + c0, null]]), q = [[r0, c0]];
+  while (q.length) {
+    const [r, c] = q.shift();
+    if (goal(r, c) && !(r === r0 && c === c0)) {
+      const path = []; let k = r + ',' + c;
+      while (k !== r0 + ',' + c0) { path.unshift(k.split(',').map(Number)); k = prev.get(k); }
+      return path;
+    }
+    for (let d = 0; d < 4; d++) {
+      if (!passable(r, c, d)) continue;
+      const nr = r + DIRS[d][0], nc = c + DIRS[d][1], k = nr + ',' + nc;
+      if (!prev.has(k)) { prev.set(k, r + ',' + c); q.push([nr, nc]); }
+    }
+  }
+  return null;
+}
+function pendingFaces(r, c) { return S.faces.filter((f) => f.r === r && f.c === c && f.seg.known && !f.covered && !f.tried); }
+
+// ---------------------------------------------------------------- 로봇 판단
+function think() {
+  if (S.done) return;
+  const [r, c] = S.cell;
+  if (S.state === 'explore') {
+    if (S.clues.every((q) => q.found) && S.doorSeen) {
+      S.state = 'keypad'; log('단서를 다 모았어요. 문 앞 키패드로 가요'); return;
+    }
+    if (!S.visited[r][c] || pendingFaces(r, c).length) {
+      const list = pendingFaces(r, c);
+      for (const f of list) { f.tried = true; S.queue.push({ t: 'look', h: headingTo(-f.nx, -f.nz) }); }
+      S.queue.push({ t: 'pan', p: 0 });
+      if (P.move === 'strafe' && list.length) S.queue.push({ t: 'turn', h: 0 });   // 메카넘: 원래 방향으로
+      S.visited[r][c] = true;
+      if (list.length) return;
+    }
+    const path = bfs(r, c, (rr, cc) => !S.visited[rr][cc] || pendingFaces(rr, cc).length > 0);
+    if (!path) { S.state = 'stuck'; log('더 갈 곳이 없는데 단서를 다 못 찾았어요 (카메라 거리·높이를 확인해 보세요)', 'b'); return; }
+    const n = center(...path[0]); S.queue.push({ t: 'go', x: n.x, z: n.z });
+  } else if (S.state === 'keypad') {
+    const dc = S.cols - 1;
+    if (r !== S.dr || c !== dc) {
+      const path = bfs(r, c, (rr, cc) => rr === S.dr && cc === dc);
+      if (!path) { S.state = 'stuck'; log('문까지 가는 길을 못 찾았어요', 'b'); return; }
+      const n = center(...path[0]); S.queue.push({ t: 'go', x: n.x, z: n.z }); return;
+    }
+    dock();
+  }
+}
+function dock() {
+  S.state = 'docking';
+  const err = (Math.random() * 2 - 1) * P.dockErr / 1000;
+  S.dockErr = err;
+  const tx = S.doorX - KD / 2 - (P.carL / 2 + P.handP) + 0.005, cz = S.doorZ;
+  S.queue.push({ t: 'turn', h: 0, hard: true }, { t: 'pan', p: 0 }, { t: 'slide', x: tx - 0.08, z: cz + err }, { t: 'slide', x: tx, z: cz + err },
+    { t: 'fn', f: () => { log(`키패드 앞에 멈춤 (옆으로 ${(err * 1000).toFixed(0)}mm 틀어짐). 비밀번호 ${S.password.join('-')} 누르기 시작`); S.typed = []; } });
+  for (const d of S.password) S.queue.push({ t: 'press', i: d - 1 });
+  S.queue.push({ t: 'fn', f: checkPassword });
+}
+function checkPassword() {
+  const ok = S.typed.join('') === S.password.join('');
+  if (ok) {
+    log(`입력 ${S.typed.join('-')} → 맞음! 문이 열려요`, 'g');
+    S.state = 'escape';
+    S.queue.push({ t: 'slide', x: S.x - 0.12, z: S.z }, { t: 'door' }, { t: 'slide', x: S.x - 0.12, z: S.doorZ }, { t: 'slide', x: S.doorX + 0.45, z: S.doorZ });
+  } else {
+    S.attempts++;
+    log(`입력 ${S.typed.join('-')} → 틀림 (${S.attempts}번째). 손가락이 엉뚱한 키나 빈 곳을 눌렀어요`, 'b');
+    if (S.attempts >= 3) { S.state = 'fail'; log('3번 틀려서 멈춰요. 키 간격·손가락 간격·멈춤 오차를 바꿔 보세요', 'b'); return; }
+    S.queue.push({ t: 'slide', x: S.x - 0.08, z: S.z }, { t: 'fn', f: () => { S.state = 'keypad'; } });
+  }
+}
+
+// ---------------------------------------------------------------- 손가락 누르기
+function fingerHit(i) {
+  if (S.doorAng > 0.05) return -1;
+  const tip = l2w(S.x, S.z, S.th, P.carL / 2 + P.handP - 0.006, (i - 1.5) * P.fingerGap / 1000);
+  const kx = S.doorX - KD / 2;
+  if (Math.abs(tip.x - kx) > KD / 2) return -1;
+  for (let j = 0; j < 4; j++) {
+    const kz = S.doorZ + (j - 1.5) * P.keyGap / 1000;
+    if (Math.abs(tip.z - kz) <= CAP) return j;
+  }
+  return -1;
+}
+function startPress(i) { if (!S.press) S.press = { i, t: 0, hit: null }; }
+function stepPress(h) {
+  const p = S.press; if (!p) return false;
+  p.t += h;
+  const dur = 0.7, k = Math.min(1, p.t / dur);
+  S.fingers[p.i].rotation.z = -0.42 * Math.sin(Math.PI * k);
+  if (p.hit === null && p.t >= dur / 2) {
+    const j = fingerHit(p.i); p.hit = j;
+    const near = Math.abs(l2w(S.x, S.z, S.th, P.carL / 2 + P.handP, 0).x - (S.doorX - KD / 2)) < 0.08;
+    if (j >= 0) { S.keyMeshes[j].position.y -= 0.004; p.key = j; }
+    if (near || j >= 0) {
+      S.typed.push(j >= 0 ? j + 1 : '_');
+      log(`${FINGER[p.i]}로 누름 → ${j >= 0 ? `${j + 1}번 키` : '키 사이 빈 곳'}`, j === p.i ? '' : 'w');
+      if (manual && S.typed.slice(-S.password.length).join('') === S.password.join('') && S.doorTarget === 0) {
+        log('비밀번호 맞음! 문이 열려요', 'g'); S.doorTarget = Math.PI / 2;
+      }
+    }
+  }
+  if (p.t >= dur) {
+    S.fingers[p.i].rotation.z = 0;
+    if (p.key != null) S.keyMeshes[p.key].position.y += 0.004;
+    S.press = null; return false;
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------- 움직이기
+function carPolys(x, z, th) {
+  const L = P.carL, W = P.carW, f = P.handP, hw = P.handW / 2;
+  const rect = (a, b, c, d) => [[a, c], [b, c], [b, d], [a, d]].map(([lx, lz]) => l2w(x, z, th, lx, lz));
+  return { body: rect(-L / 2, L / 2, -W / 2, W / 2), hand: rect(L / 2, L / 2 + f, -hw, hw) };
+}
+function polyHits(poly, segs) {
+  for (const s of segs) {
+    for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length]; if (segSeg(a.x, a.z, b.x, b.z, s)) return true; }
+    if (inPoly(s.x1, s.z1, poly) || inPoly(s.x2, s.z2, poly)) return true;
+  }
+  return false;
+}
+function checkCollision() {
+  const segs = activeSegs(), polys = carPolys(S.x, S.z, S.th);
+  const hand = polyHits(polys.hand, segs), body = polyHits(polys.body, segs);
+  const hit = hand || body;
+  if (hit && !S.inHit) {
+    S.collisions++; S.hitFlash = 0.4;
+    const what = hand && body ? '손과 차체' : hand ? '손' : '차체';
+    const doing = S.lastAct === 'turn' || S.lastAct === 'look' ? ' (제자리 회전 중)' : '';
+    log(`${what}가 벽에 닿았어요${doing}`, 'b');
+  }
+  S.inHit = hit;
+}
+// 벽에 막히는 움직임은 하지 않는다 (손·차체가 벽을 넘지 않게)
+function collides(x, z, th) {
+  const segs = activeSegs(), p = carPolys(x, z, th);
+  return polyHits(p.hand, segs) || polyHits(p.body, segs);
+}
+function allowed(x, z, th) { return !collides(x, z, th) || collides(S.x, S.z, S.th); }
+function rotateTo(target, h) {
+  const d = wrap(target - S.th), stepA = P.turn * Math.PI / 180 * h;
+  const nt = Math.abs(d) <= stepA ? target : wrap(S.th + Math.sign(d) * stepA);
+  if (!allowed(S.x, S.z, nt)) return 'blocked';
+  S.th = nt; return nt === target;
+}
+function slideTo(x, z, h) {
+  const dx = x - S.x, dz = z - S.z, d = Math.hypot(dx, dz), s = P.speed * h;
+  const nx = d <= s ? x : S.x + dx / d * s, nz = d <= s ? z : S.z + dz / d * s;
+  if (!allowed(nx, nz, S.th)) return 'blocked';
+  S.x = nx; S.z = nz; return d <= s;
+}
+function sweepFree(x, z, from, to) {
+  const d = wrap(to - from), n = Math.max(1, Math.ceil(Math.abs(d) / 0.05));
+  for (let i = 0; i <= n; i++) if (collides(x, z, from + d * i / n)) return false;
+  return true;
+}
+function pathFree(x1, z1, x2, z2, th) {
+  const n = Math.max(1, Math.ceil(Math.hypot(x2 - x1, z2 - z1) / 0.015));
+  for (let i = 1; i <= n; i++) if (collides(x1 + (x2 - x1) * i / n, z1 + (z2 - z1) * i / n, th)) return false;
+  return true;
+}
+// 지금 칸 안에서 벽에 안 닿고 target 방향까지 돌 수 있는 자리를 찾는다 (가까운 곳부터)
+function findTurnSpot(to) {
+  const cc = center(...S.cell), cand = [], half = S.cw / 2;
+  for (let dx = -half; dx <= half + 1e-9; dx += 0.02) for (let dz = -half; dz <= half + 1e-9; dz += 0.02) {
+    const x = cc.x + dx, z = cc.z + dz; cand.push({ x, z, d: Math.hypot(x - S.x, z - S.z) });
+  }
+  cand.sort((a, b) => a.d - b.d);
+  for (const c of cand) {
+    if (collides(c.x, c.z, S.th) || !sweepFree(c.x, c.z, S.th, to) || !pathFree(S.x, S.z, c.x, c.z, S.th)) continue;
+    return c;
+  }
+  return null;
+}
+// 돌기: 막히면 한 번은 돌 수 있는 자리로 옮겨 보고, 그래도 안 되면 'fail'
+function doTurn(a, target, h) {
+  const r = rotateTo(target, h);
+  if (r !== 'blocked') return r;
+  if (!a.spotTried) {
+    a.spotTried = true;
+    const s = findTurnSpot(target);
+    if (s) { S.queue.unshift({ t: 'slide', x: s.x, z: s.z }); return false; }
+  }
+  return 'fail';
+}
+// 지금 칸과 다음 칸에서 같은 만큼 비켜 서면(o) 벽에 안 닿고 곧게 지나갈 수 있는지 찾는다
+function findOffset(tx, tz) {
+  const cc = center(...S.cell), lim = S.cw / 2 - 0.02, cand = [];
+  for (let dx = -lim; dx <= lim + 1e-9; dx += 0.02) for (let dz = -lim; dz <= lim + 1e-9; dz += 0.02) cand.push({ x: dx, z: dz, d: Math.hypot(dx, dz) });
+  cand.sort((a, b) => a.d - b.d);
+  const tc = center(...cellOf(tx, tz));
+  for (const o of cand) {
+    const fx = cc.x + o.x, fz = cc.z + o.z;
+    if (collides(fx, fz, S.th) || collides(tc.x + o.x, tc.z + o.z, S.th)) continue;
+    if (!pathFree(S.x, S.z, fx, fz, S.th) || !pathFree(fx, fz, tc.x + o.x, tc.z + o.z, S.th)) continue;
+    return { x: tc.x + o.x - tx, z: tc.z + o.z - tz, fx, fz };
+  }
+  return null;
+}
+function warnOnce(key, text) { S.warned ||= {}; if (!S.warned[key]) { S.warned[key] = 1; log(text, 'w'); } }
+function panTo(p, h) {
+  const s = 150 * Math.PI / 180 * h, d = p - S.pan;
+  if (Math.abs(d) <= s) { S.pan = p; return true; }
+  S.pan += Math.sign(d) * s; return false;
+}
+function runQueue(h) {
+  if (stepPress(h)) return;
+  const a = S.queue[0];
+  if (!a) { think(); return; }
+  S.lastAct = a.t;
+  let done = false;
+  switch (a.t) {
+    case 'go': {
+      const dist = Math.hypot(a.x - S.x, a.z - S.z), dh = headingTo(a.x - S.x, a.z - S.z);
+      a.sx ??= S.x; a.sz ??= S.z;
+      if (dist < 1e-4) { done = true; S.cell = cellOf(a.x, a.z); break; }
+      if (P.move === 'strafe') a.strafe = true;
+      if (!a.strafe && Math.abs(wrap(dh - S.th)) > 0.01) {
+        S.lastAct = 'turn'; panTo(0, h);
+        if (doTurn(a, dh, h) === 'fail') { a.strafe = true; warnOnce('strafe', '통로가 좁아서 제자리에서 못 돌아요 → 돌지 않고 옆으로 미끄러지듯 이동해요 (메카넘)'); }
+        break;
+      }
+      const r = slideTo(a.x, a.z, h);
+      if (r === 'blocked') {                   // 손이 앞 벽에 닿기 직전: 여기서 멈춘다
+        done = true;
+        const moved = Math.hypot(S.x - a.sx, S.z - a.sz);
+        if (moved < S.cw * 0.3 && !a.offTried) {      // 칸 안에서 살짝 비켜 선 채로 가 보기
+          a.offTried = true;
+          const o = findOffset(a.x, a.z);
+          if (o) { done = false; a.strafe = true; a.x += o.x; a.z += o.z; a.sx = undefined; S.queue.unshift({ t: 'slide', x: o.fx, z: o.fz }); break; }
+        }
+        if (moved < S.cw * 0.3) {               // 거의 못 갔으면 이 길은 못 지나간다고 기억
+          const to = cellOf(a.x, a.z); S.blocked.add(S.cell + '>' + to);
+          warnOnce('nopass', '차+손이 길어서 못 지나가는 곳이 있어요. 다른 길로 돌아가요');
+          break;
+        }
+        warnOnce('short', '손이 앞 벽에 닿기 직전이라 칸 가운데까지 못 가고 멈췄어요');
+      } else done = r;
+      if (done) S.cell = cellOf(a.x, a.z);
+      break;
+    }
+    case 'look': {
+      const d = wrap(a.h - S.th);
+      if (!a.turning && Math.abs(d) <= Math.PI / 2 + 1e-6) done = panTo(d, h);            // 팬틸트로 고개만 돌림
+      else {                                                                               // 뒤쪽은 차를 돌림
+        a.turning = true; S.lastAct = 'turn';
+        const r = doTurn(a, a.h, h), r2 = panTo(0, h);
+        if (r === 'fail') { warnOnce('look', '좁아서 차를 돌릴 수 없어 뒤쪽 벽 일부는 못 봤어요'); S.queue.shift(); return; }
+        done = r === true && r2;
+      }
+      if (done) { a.wait = (a.wait || 0) + h; done = a.wait > 0.25; }   // 잠깐 멈춰서 봄
+      break;
+    }
+    case 'pan': done = panTo(a.p, h); break;
+    case 'turn': {
+      const r = doTurn(a, a.h, h);
+      if (r === 'fail') {
+        if (a.hard) { S.state = 'stuck'; log('문 앞에서 키패드 쪽으로 차를 돌릴 공간이 없어요. 통로를 넓혀 보세요', 'b'); }
+        done = true;
+      } else done = r;
+      break;
+    }
+    case 'slide': { const r = slideTo(a.x, a.z, h); done = r === 'blocked' ? true : r; break; }
+    case 'press': startPress(a.i); done = true; break;
+    case 'door': S.doorTarget = Math.PI / 2; done = S.doorAng >= Math.PI / 2 - 1e-3; break;
+    case 'fn': a.f(); done = true; break;
+  }
+  if (done) S.queue.shift();
+}
+function manualStep(h) {
+  if (stepPress(h)) { /* 누르는 동안도 움직일 수 있게 아래 계속 */ }
+  const v = (keysDown.has('w') ? 1 : 0) - (keysDown.has('s') ? 1 : 0);
+  const sv = (keysDown.has('e') ? 1 : 0) - (keysDown.has('q') ? 1 : 0);
+  const w = (keysDown.has('a') ? 1 : 0) - (keysDown.has('d') ? 1 : 0);
+  const pz = (keysDown.has('z') ? 1 : 0) - (keysDown.has('x') ? 1 : 0);
+  const sp = P.speed * h;
+  const p = l2w(S.x, S.z, S.th, v * sp, sv * sp);
+  if (allowed(p.x, p.z, S.th)) { S.x = p.x; S.z = p.z; } else if (v || sv) warnOnce('mwall', '벽에 막혀서 더 못 가요 (손이나 차체가 벽에 닿음)');
+  const nt = wrap(S.th + w * P.turn * Math.PI / 180 * h);
+  if (allowed(S.x, S.z, nt)) S.th = nt; else if (w) warnOnce('mturn', '여기서는 돌면 손이 벽에 닿아서 못 돌아요');
+  S.cell = cellOf(S.x, S.z);
+  S.pan = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, S.pan + pz * 2 * h));
+  S.lastAct = w ? 'turn' : 'move';
+}
+
+function step(h) {
+  S.time += h;
+  if (manual) manualStep(h); else if (!['stuck', 'fail', 'done'].includes(S.state)) runQueue(h);
+  // 문
+  if (S.doorAng < S.doorTarget) S.doorAng = Math.min(S.doorTarget, S.doorAng + h * Math.PI / 2 / 1.5);
+  S.lidarT += h; S.covT += h;
+  if (S.lidarT >= 0.1) { S.lidarT = 0; lidarScan(); }
+  if (S.covT >= 0.05) { S.covT = 0; coverage(); }
+  checkCollision();
+  // 오래 제자리면 멈춤 처리
+  if (!manual && !S.press && !['stuck', 'fail', 'done'].includes(S.state)) {
+    const lp = S.lastPose || [S.x, S.z, S.th];
+    if (Math.hypot(S.x - lp[0], S.z - lp[1]) > 0.003 || Math.abs(wrap(S.th - lp[2])) > 0.01 || S.queue[0]?.t === 'look' || S.queue[0]?.t === 'pan') { S.lastPose = [S.x, S.z, S.th]; S.idle = 0; }
+    else if ((S.idle = (S.idle || 0) + h) > 20) { S.state = 'stuck'; log('20초 동안 움직이지 못했어요 (벽에 막힘). 통로를 넓히거나 메카넘 방식을 써 보세요', 'b'); }
+  }
+  const last = S.trail[S.trail.length - 1];
+  if (Math.hypot(S.x - last[0], S.z - last[1]) > 0.02) S.trail.push([S.x, S.z]);
+  if (!S.done && S.x > S.doorX + 0.3) {
+    S.done = true; S.state = 'done';
+    log(`탈출 성공! 걸린 시간 ${S.time.toFixed(1)}초, 벽에 닿은 횟수 ${S.collisions}번`, 'g');
+  }
+  if (S.hitFlash > 0) S.hitFlash -= h;
+}
+
+// ---------------------------------------------------------------- 그리기
+function syncScene() {
+  S.carG.position.set(S.x, 0, S.z); S.carG.rotation.y = S.th;
+  S.panG.rotation.y = S.pan;
+  S.doorG.rotation.y = S.doorAng;
+  S.bodyM.emissive.setHex(S.hitFlash > 0 ? 0x992222 : 0x000000);
+  S.rays.visible = $('cRays').checked;
+  // 카메라 시야 부채꼴
+  S.cone.visible = $('cCone').checked;
+  if (S.cone.visible) {
+    const cp = camPose(), half = P.camFov * Math.PI / 360, pts = [cp.x, 0.004, cp.z];
+    for (let k = 0; k <= 16; k++) { const a = cp.h - half + 2 * half * k / 16; pts.push(cp.x + Math.cos(a) * P.camR, 0.004, cp.z - Math.sin(a) * P.camR); }
+    const idx = []; for (let k = 1; k <= 16; k++) idx.push(0, k, k + 1);
+    S.cone.geometry.dispose(); S.cone.geometry = new THREE.BufferGeometry();
+    S.cone.geometry.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); S.cone.geometry.setIndex(idx);
+  }
+  // 로봇 카메라
+  const cp = camPose();
+  robotCam.position.set(cp.x, P.camH, cp.z);
+  robotCam.lookAt(cp.x + Math.cos(cp.h), P.camH - 0.05, cp.z - Math.sin(cp.h));
+}
+function updateRobotCam() {
+  robotCam.fov = 2 * Math.atan(Math.tan(P.camFov * Math.PI / 360) / robotCam.aspect) * 180 / Math.PI;
+  robotCam.updateProjectionMatrix();
+}
+function drawMap() {
+  const mc = $('map'), g = mc.getContext('2d'), G = S.grid, k = S.mapScale;
+  const img = g.createImageData(G.nx, G.nz);
+  const cU = hex(css('--bg')), cF = hex(css('--panel')), cO = hex(css('--ink'));
+  for (let i = 0; i < G.v.length; i++) {
+    const c = G.v[i] === 2 ? cO : G.v[i] === 1 ? cF : cU;
+    img.data[i * 4] = c[0]; img.data[i * 4 + 1] = c[1]; img.data[i * 4 + 2] = c[2]; img.data[i * 4 + 3] = 255;
+  }
+  const off = new OffscreenCanvas(G.nx, G.nz); off.getContext('2d').putImageData(img, 0, 0);
+  g.imageSmoothingEnabled = false; g.drawImage(off, 0, 0, mc.width, mc.height);
+  const X = (x) => (x - G.ox) * k, Z = (z) => (z - G.oz) * k;
+  g.strokeStyle = css('--accent'); g.lineWidth = 1.5; g.beginPath();
+  S.trail.forEach(([x, z], i) => (i ? g.lineTo(X(x), Z(z)) : g.moveTo(X(x), Z(z)))); g.stroke();
+  for (const c of S.clues) if (c.found) {
+    const f = c.face; g.fillStyle = c.kind === 'pair' ? c.color.h : css('--ink');
+    g.fillRect(X(f.x) - 5, Z(f.z) - 5, 10, 10);
+    if (c.kind === 'pair') { g.fillStyle = '#fff'; g.font = 'bold 9px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(c.num, X(f.x), Z(f.z) + 0.5); }
+  }
+  if (S.doorSeen) { g.fillStyle = '#a0703f'; g.fillRect(X(S.doorX) - 2, Z(S.doorZ - S.cw / 2), 4, S.cw * k); }
+  // 로봇
+  g.save(); g.translate(X(S.x), Z(S.z)); g.rotate(-S.th);
+  g.fillStyle = css('--bad'); g.beginPath(); g.moveTo(9, 0); g.lineTo(-6, -5); g.lineTo(-6, 5); g.closePath(); g.fill(); g.restore();
+}
+function hex(c) {
+  if (c.startsWith('#')) { const n = c.length === 4 ? c.slice(1).split('').map((x) => x + x).join('') : c.slice(1); return [0, 2, 4].map((i) => parseInt(n.slice(i, i + 2), 16)); }
+  return [128, 128, 128];
+}
+const PHASE = { explore: '미로 탐색 중', keypad: '문 앞 키패드로 가는 중', docking: '키패드 앞에서 비밀번호 누르는 중', escape: '문 열고 나가는 중',
+  done: '탈출 성공!', stuck: '멈춤: 갈 곳이 없어요', fail: '멈춤: 비밀번호 3번 틀림' };
+function drawHud() {
+  const pairs = S.pairs.map((p) => `<span class="chip ${p.found ? '' : 'off'}" style="background:${p.color.h}">${p.found ? `${p.color.n} ${p.num}` : '?'}</span>`).join('');
+  const ord = S.final.found ? S.final.order.map((o) => `<span class="chip" style="background:${o.h}">${o.n}</span>`).join('→') : '<span class="chip off">아직</span>';
+  const pw = S.clues.every((q) => q.found) ? S.password.join(' - ') : '단서를 더 모아야 해요';
+  $('hud').innerHTML = `<div class="phase">${manual ? '직접 운전 중' : PHASE[S.state] || ''}</div>
+    <div class="kv"><span>시간</span><span>${S.time.toFixed(1)}초</span>
+    <span>색-숫자 단서</span><span>${pairs}</span>
+    <span>순서 단서</span><span>${ord}</span>
+    <span>비밀번호</span><span>${pw}</span>
+    <span>누른 키</span><span>${S.typed.length ? S.typed.join(' ') : '-'}</span>
+    <span>벽에 닿음</span><span style="color:${S.collisions ? css('--bad') : 'inherit'}">${S.collisions}번</span>
+    <span>우드락</span><span>${Math.ceil(S.wallLen / S.sheetLen - 1e-9)}장 / ${P.sheets}장 (벽 ${S.wallLen.toFixed(1)}m)</span></div>`;
+}
+
+function resize() {
+  const r = $('main').getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false);
+  cam.aspect = r.width / r.height; cam.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+
+let lastT = performance.now(), hudT = 0;
+function frame(now) {
+  const real = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  if (running || manual) {
+    let sim = real * (manual ? 1 : +$('sSpeed').value);
+    while (sim > 1e-6) { const h = Math.min(1 / 60, sim); step(h); sim -= h; }
+  }
+  syncScene();
+  const view = $('sView').value;
+  if (view === 'follow') {
+    const f = l2w(S.x, S.z, S.th, -0.55, 0);                       // 벽 위에서 비스듬히 내려다봄
+    cam.position.lerp(new THREE.Vector3(f.x, S.wallH + 0.55, f.z), 0.12); cam.lookAt(S.x, 0.05, S.z); controls.enabled = false;
+  } else if (view === 'top') {
+    cam.position.set(0, 5.2, 0.001); cam.lookAt(0, 0, 0); controls.enabled = false;
+  } else controls.enabled = view === 'orbit';
+  if (controls.enabled) controls.update();
+  if (view === 'robot') { robotCam.aspect = cam.aspect; updateRobotCam(); renderer.render(scene, robotCam); robotCam.aspect = 1.5; updateRobotCam(); }
+  else renderer.render(scene, cam);
+  pipRenderer.render(scene, robotCam);
+  hudT += real;
+  if (hudT > 0.15) { hudT = 0; drawHud(); drawMap(); }
+  requestAnimationFrame(frame);
+}
+
+// ---------------------------------------------------------------- 버튼
+$('bRun').onclick = () => {
+  if (S.done || ['stuck', 'fail'].includes(S.state)) reset();
+  manual = false; $('bManual').classList.remove('on');
+  running = !running; $('bRun').textContent = running ? '⏸ 일시정지' : '▶ 시작';
+  if (running && S.time === 0) log('출발! 아직 안 본 곳을 찾아다니며 라이다로 지도를 그리고, 카메라로 단서를 읽어요');
+};
+$('bReset').onclick = () => { manual = false; $('bManual').classList.remove('on'); reset(); };
+$('bNew').onclick = () => { P.seed = P.seed % 999 + 1; saveP(); buildForm(); reset(); };
+$('bDefault').onclick = () => { for (const p of PARAMS) P[p.key] = p.def; saveP(); buildForm(); reset(); };
+$('bManual').onclick = () => {
+  manual = !manual; running = false; $('bRun').textContent = '▶ 시작';
+  $('bManual').classList.toggle('on', manual);
+  if (manual) log('직접 운전: W/S 앞뒤, A/D 회전, Q/E 옆으로, 1~4 손가락 누르기, Z/X 카메라');
+};
+addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  const k = e.key.toLowerCase();
+  if (manual && '1234'.includes(k) && k.length === 1) { startPress(+k - 1); return; }
+  if ('wasdqezx'.includes(k) && k.length === 1) { keysDown.add(k); e.preventDefault(); }
+});
+addEventListener('keyup', (e) => keysDown.delete(e.key.toLowerCase()));
+addEventListener('blur', () => keysDown.clear());
+
+buildForm();
+reset();
+resize();
+requestAnimationFrame(frame);
+window.__sim = { get S() { return S; }, P, reset,
+  ff(sec) { running = true; for (let t = 0; t < sec && !['done', 'stuck', 'fail'].includes(S.state); t += 1 / 60) step(1 / 60); running = false; } };
+</script>
+<script>
+  setTimeout(() => { if (!window.__sim) document.getElementById('err').style.display = 'block'; }, 6000);
+</script>
+</body>
+</html>
