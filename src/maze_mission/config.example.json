@@ -1,0 +1,16 @@
+{
+ "lidar": {"front_offset_deg": 0, "clockwise": true, "min_range": 0.12, "ignore": []},
+ "drive": {"speed_fwd": 0.30, "speed_side": 0.22, "speed_rot_deg": 120},
+ "wall": {"side": "right", "skew_deg": 30, "d_ref": 0.32, "v": 0.12},
+ "camera": {"source": "usb", "index": 0, "fov_deg": 48},
+ "detect": {"mode": "remote", "url": "http://192.168.0.10:8090/detect"},
+ "animals": {
+  "cat": {"ko": "고양이", "digit": "1"},
+  "dog": {"ko": "강아지", "digit": "2"},
+  "bird": {"ko": "새", "digit": "3"},
+  "horse": {"ko": "말", "digit": "4"}
+ },
+ "mission": {"expect": 3, "code_rule": "sorted", "press_dist": 0.22, "cam_offset": 0.0, "press_mode": "hand"},
+ "hand": {"key_finger": {"1": 2, "2": 3, "3": 4, "4": 5}, "press_angle": {"2": 70, "3": 70, "4": 70, "5": 70}},
+ "door": {"station_url": "http://192.168.0.10:8095"}
+}
