@@ -9,4 +9,4 @@
 
 | 파일 | 작성자 | 요약 |
 |---|---|---|
-| | | |
+| [idea_OH-BJ_ball_scenario.md](idea_OH-BJ_ball_scenario.md) | @OH-BJ | 음성 명령 색깔 공 배달 미로 탈출 (시나리오 v1, 안) |
