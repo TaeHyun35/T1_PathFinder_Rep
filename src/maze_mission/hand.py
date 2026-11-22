@@ -72,3 +72,11 @@ class NoHand:
 
     def close(self):
         pass
+
+
+def open_hand(cfg):
+    """config hand.ble = true -> Bluetooth micro:bit (ble_hand.py), otherwise USB."""
+    if cfg.get("ble"):
+        from ble_hand import MicrobitBleHand
+        return MicrobitBleHand(cfg)
+    return MicrobitHand(cfg)
