@@ -1,0 +1,24 @@
+{
+    "name": "aihand-ble",
+    "description": "AiHand over Bluetooth UART (see main.ts)",
+    "dependencies": {
+        "core": "*",
+        "bluetooth": "*",
+        "microphone": "*"
+    },
+    "files": [
+        "main.ts"
+    ],
+    "preferredEditor": "tsprj",
+    "yotta": {
+        "config": {
+            "microbit-dal": {
+                "bluetooth": {
+                    "open": 1,
+                    "whitelist": 0,
+                    "security_level": null
+                }
+            }
+        }
+    }
+}

@@ -347,7 +347,7 @@ class Mission:
 # =================================================================== 실행 모드
 def build_real(cfg, a, need_vision=True, need_hand=True):
     from drive import NoCar, RaspbotCar
-    from hand import MicrobitHand, NoHand
+    from hand import open_hand, NoHand
     from lidar import RPLidar
     lidar = RPLidar(cfg["lidar"])
     lidar.wait_ready()
@@ -356,7 +356,7 @@ def build_real(cfg, a, need_vision=True, need_hand=True):
     if need_vision:
         from vision import Vision
         vision = Vision(cfg["camera"], cfg["detect"], list(cfg["animals"].keys()))
-    hand = NoHand() if (a.no_hand or not need_hand or cfg["mission"]["press_mode"] == "virtual") else MicrobitHand(cfg["hand"])
+    hand = NoHand() if (a.no_hand or not need_hand or cfg["mission"]["press_mode"] == "virtual") else open_hand(cfg["hand"])
     return lidar, car, vision, hand
 
 
@@ -504,8 +504,8 @@ def cmd_see(cfg, a):
 
 
 def cmd_keys(cfg, a):
-    from hand import MicrobitHand
-    h = MicrobitHand(cfg["hand"])
+    from hand import open_hand
+    h = open_hand(cfg["hand"])
     try:
         if a.sweep:
             f = a.sweep

@@ -93,14 +93,22 @@ def serve(door, port):
     ThreadingHTTPServer(("0.0.0.0", port), H).serve_forever()
 
 
+# 키패드로 F1~F4 를 쓴다: F1=1, F2=2, F3=3, F4=4
+WIN_FKEYS = {";": "1", "<": "2", "=": "3", ">": "4"}            # 윈도우 msvcrt: "\x00" 다음 글자
+NIX_FKEYS = {"OP": "1", "OQ": "2", "OR": "3", "OS": "4",       # 리눅스 터미널: ESC 다음 글자들
+             "[11~": "1", "[12~": "2", "[13~": "3", "[14~": "4"}
+
+
 def read_keys():
-    """키 하나씩 읽기 (윈도우 / 리눅스)"""
+    """키 하나씩 읽기 (윈도우 / 리눅스). F1~F4 는 숫자 1~4 로 바꿔서 준다."""
     try:
         import msvcrt
         while True:
             ch = msvcrt.getwch()
-            if ch in ("\x00", "\xe0"):          # 방향키 등
-                msvcrt.getwch()
+            if ch in ("\x00", "\xe0"):          # F키, 방향키 등 (두 글자로 들어옴)
+                code = msvcrt.getwch()
+                if ch == "\x00" and code in WIN_FKEYS:
+                    yield WIN_FKEYS[code]
                 continue
             yield ch
     except ImportError:
@@ -111,7 +119,16 @@ def read_keys():
         try:
             tty.setcbreak(fd)
             while True:
-                yield sys.stdin.read(1)
+                ch = sys.stdin.read(1)
+                if ch == "\x1b":                # ESC 로 시작하는 F키 / 방향키
+                    seq = sys.stdin.read(2)
+                    if seq[0] == "[" and seq[1].isdigit():
+                        while not seq.endswith("~"):
+                            seq += sys.stdin.read(1)
+                    if seq in NIX_FKEYS:
+                        yield NIX_FKEYS[seq]
+                    continue
+                yield ch
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old)
 

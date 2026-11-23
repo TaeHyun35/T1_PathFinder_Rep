@@ -60,6 +60,19 @@ DONE     앞쪽이 1.2m 넘게 비면 밖으로 나간 것
 | `hand.press_angle` | `python3 mission.py keys --sweep 2` (손가락 2~5 하나씩) |
 | `hand.key_finger` | 어느 숫자 키 위에 어느 손가락이 오는지 |
 
+## 2026-11-22 추가: 키보드 F1~F4, 블루투스 손, 라이다 점검
+
+- **키패드 = 키보드 F1~F4** (바닥에 놓고 누름). `door_station.py` 가 F1~F4 를 숫자 1~4 로 받는다 (윈도우 콘솔, 리눅스 터미널 둘 다).
+  무선 키보드가 F키 대신 음량·밝기를 보내면 키보드의 Fn Lock (보통 Fn+Esc) 을 바꾸기.
+- **손가락 배치** (`hand.key_finger`): 검지=F4, 중지=F3, 약지=F2, 새끼=F1. 실측 누름 각도 검지 89, 중지 68, 약지 78, 새끼 74 (`config.example.json`).
+  누를 때는 손을 다 편 상태에서 한 손가락만 굽혔다가 다시 편다.
+- **손을 블루투스로**: `config.json` 에 `"hand": {"ble": true}` 면 `ble_hand.py` 를 쓴다 (`hand.open_hand`). micro:bit 프로그램과
+  USB 없이 올리는 법은 [`microbit_ble/README.md`](microbit_ble/README.md). 블루투스 라이브러리(bleak)가 든 `~/handenv/bin/python` 으로 실행.
+- **라이다 점검** `python3 lidar_check.py`: 방향마다 빔 응답률. 11/22 측정에서 **앞쪽(-60~+30도) 응답이 0~50%** 였다.
+  A1 은 15cm 보다 가까운 물체를 "응답 없음"으로 주므로, 라이다보다 앞으로 튀어나온 손이 빔을 가리는 것으로 보임 → 라이다를 손보다 높이 올리기.
+  이 상태에서는 `sector_min`/`ray` 가 응답 없는 앞쪽을 "아주 멂"으로 계산해, 막힌 앞을 열린 길로 볼 수 있음.
+- 실험 기록: [`docs/04_implementation/exp_2026-11-22_keyboard_lidar_ble_hand.md`](../../docs/04_implementation/exp_2026-11-22_keyboard_lidar_ble_hand.md)
+
 ## 내일 순서 (하나씩 통과하면 다음)
 
 1. **라이다 원인 확인:** 라이다 쓰는 다른 프로그램을 끄고 `python3 lidar_view.py`, 폰으로 `http://<파이IP>:8080`
