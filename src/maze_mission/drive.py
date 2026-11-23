@@ -28,6 +28,8 @@ class RaspbotCar:
             self.bot.Ctrl_Car(mid, 0 if p >= 0 else 1, abs(p))
 
     def drive(self, vx, vy, w):
+        if not all(math.isfinite(v) for v in (vx, vy, w)):
+            return self.stop()                   # 계산이 꼬이면(nan) 무조건 멈춤
         c = self.cfg
         self.cmd = (vx, vy, w)
         px = vx / c["speed_fwd"] * c["power_ref"]

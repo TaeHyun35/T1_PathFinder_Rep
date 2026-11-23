@@ -84,10 +84,13 @@ class World:
         dc = C - 1
         self.door = ((dc * CELL_W, H), ((dc + 1) * CELL_W, H))
         self.walls += [((0, 0), (W, 0)), ((W, 0), (W, H)), ((0, H), (dc * CELL_W, H)), ((0, 0), (0, H))]
+        # 미로 바깥 방 벽 (실제로도 라이다는 방 벽을 본다. 없으면 바깥이 전부 "응답 없음")
+        m = 1.5
+        self.room = [((-m, -m), (W + m, -m)), ((W + m, -m), (W + m, H + m)), ((W + m, H + m), (-m, H + m)), ((-m, H + m), (-m, -m))]
         self.door_open = False
 
     def all_walls(self):
-        return self.walls + ([] if self.door_open else [self.door])
+        return self.walls + self.room + ([] if self.door_open else [self.door])
 
     def _props(self):
         rng, cfg = self.rng, self.cfg

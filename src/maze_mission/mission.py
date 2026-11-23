@@ -33,6 +33,11 @@ from common import HERE, RAD, Log, RealClock, clamp, load_config, save_config_pa
 
 
 # =================================================================== 벽 따라가기
+def blocked(d, th):
+    """거리 d 가 th 보다 가깝거나, 라이다가 그 방향을 못 보면(nan) True"""
+    return math.isnan(d) or d < th
+
+
 def follow(scan, cfg, side):
     """라이다 한 바퀴 -> (vx, vy, w, 상태글자). side: 'right' / 'left'"""
     c = cfg["wall"]
@@ -43,12 +48,19 @@ def follow(scan, cfg, side):
     front = scan.sector_min(0 + k, 22)
     r1 = scan.ray(-90 * s + k)
     r2 = scan.ray(-60 * s + k)
+    body_front = scan.sector_min(0, 25)                  # 손이 향한 쪽 (몸 정면)
+    if math.isnan(front) or math.isnan(body_front):
+        return 0.0, 0.0, 0.0, "앞 안 보임-정지"          # 손이 라이다를 가리는 중일 수 있음 -> 움직이지 않음
+    if body_front < c.get("hand_clear", 0.12) + 0.18:    # 손끝(라이다에서 약 0.18m 앞) 바로 앞에 뭔가 있음
+        return -0.05, 0.0, 0.0, "손 앞 막힘-후진"
     if front < c["front_stop"]:
         return 0.0, 0.0, s * c["w_turn_deg"] * RAD, "막힘-회전"
+    if math.isnan(r1):
+        return 0.0, 0.0, 0.0, "옆 안 보임-정지"
     if r1 > c["open"] and r2 > c["open"] * 1.1:
         vx, vy, w, tag = c["v_arc"], 0.0, -s * c["w_arc_deg"] * RAD, "옆길-돌기"
     else:
-        if math.isinf(r2):
+        if math.isnan(r2) or math.isinf(r2):
             r2 = r1 / math.cos(30 * RAD)
         phi = math.atan2(s * (r1 - math.cos(30 * RAD) * r2), 0.5 * r2)     # 벽 기울기 (다가오면 +)
         dperp = r1 * math.cos(phi)
@@ -163,6 +175,7 @@ class Mission:
         if st == "EXPLORE":
             vx, vy, w, tag = follow(scan, cfg, self.side)
             side_d = scan.ray(-90 if self.side == "right" else 90)
+            side_d = 9.0 if math.isnan(side_d) else side_d
             want_look = (not done_animals) or self.marker(kp, 3.0) is None
             if cfg["look"]["every_s"] > 0 and now >= self.next_look and tag == "벽따라" and side_d < 0.6 and want_look:
                 self.car.stop()
@@ -193,6 +206,9 @@ class Mission:
                 self.car.stop()
                 return self.go("BACKOFF", "키패드 놓침/시간 초과 -> 뒤로 물러나 다시")
             front = scan.ray(0, 6)
+            if math.isnan(front):
+                self.car.stop()
+                return
             e = (m[1] - 0.5) - mc["cam_offset"]
             pd = mc["press_dist"]
             if front > pd + 0.15:                # 멀 때: 마커를 가운데로 돌리며 다가가기
@@ -201,17 +217,17 @@ class Mission:
                 # 옆 벽 모서리에 몸/손이 걸리지 않게: 비스듬히 앞쪽이 가까우면 반대로 비켜서기
                 cl, cr = scan.sector_min(55, 35), scan.sector_min(-55, 35)
                 vy = 0.0
-                if cl < 0.24:
+                if blocked(cl, 0.24):
                     vy -= 0.06
-                if cr < 0.24:
+                if blocked(cr, 0.24):
                     vy += 0.06
-                if min(cl, cr) < 0.20:
+                if blocked(cl, 0.20) or blocked(cr, 0.20):
                     vx = 0.0
                 self.car.drive(vx, vy, w)
                 self.aligned_since = None
             else:                                # 가까울 때: 벽과 직각 + 옆으로 맞추기 + 거리 맞추기
                 dl, dr = scan.ray(25, 3), scan.ray(-25, 3)
-                sq = (dl - dr) if not (math.isinf(dl) or math.isinf(dr)) else 0.0
+                sq = (dl - dr) if math.isfinite(dl) and math.isfinite(dr) else 0.0
                 lat = e * 2 * front * math.tan(cfg["camera"]["fov_deg"] / 2 * RAD)
                 w = clamp(-3.0 * sq, -0.3, 0.3)
                 vy = clamp(-1.5 * lat, -0.06, 0.06)
@@ -272,7 +288,7 @@ class Mission:
             front = scan.sector_min(0, 15)
             dl, dr = scan.ray(70, 15), scan.ray(-70, 15)
             vy = clamp(0.6 * (dl - dr), -0.05, 0.05) if (dl < 0.5 and dr < 0.5) else 0.0
-            if front < 0.30:                     # 문이 아직 닫혀 있거나 벽 앞
+            if blocked(front, 0.30):                     # 문이 아직 닫혀 있거나 벽 앞
                 self.car.stop()
                 if self.sub is None:
                     self.sub = now

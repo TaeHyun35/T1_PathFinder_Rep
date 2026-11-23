@@ -19,17 +19,37 @@ class Scan:
     def __init__(self, pts, t):
         self.pts, self.t = pts, t
 
-    def sector_min(self, center, half):
-        best = math.inf
+    # 응답 없음(거리 0)은 "아주 멂"이 아니라 "모름"이다. 손이 라이다 앞을 가리면 응답이 없어진다.
+    # 모를 때는 nan 을 돌려주고, 부르는 쪽은 nan 을 "막힘"으로 다룬다 (mission.py 의 blocked()).
+    NEAR = 2.0          # 이보다 가까운 점이 하나라도 있으면 응답률과 상관없이 그 거리를 믿는다
+    NEED = 0.30         # 부채꼴 안 점 중 응답이 이 비율보다 적으면 "모름"
+
+    def coverage(self, center, half):
+        tot = ok = 0
         for a, d in self.pts:
-            if d > 0 and abs(wrap_deg(a - center)) <= half and d < best:
-                best = d
-        return best
+            if abs(wrap_deg(a - center)) <= half:
+                tot += 1
+                ok += d > 0
+        return ok / tot if tot else 0.0
+
+    def sector_min(self, center, half):
+        """부채꼴 안 가장 가까운 거리. 모르면 nan"""
+        tot, ds = 0, []
+        for a, d in self.pts:
+            if abs(wrap_deg(a - center)) <= half:
+                tot += 1
+                if d > 0:
+                    ds.append(d)
+        if ds and min(ds) < self.NEAR:
+            return min(ds)
+        if not tot or len(ds) / tot < self.NEED:
+            return math.nan
+        return min(ds)
 
     def ray(self, center, half=3.0):
-        """한 방향의 거리 (작은 부채꼴 안 중간값)"""
+        """한 방향의 거리 (작은 부채꼴 안 중간값). 응답이 하나도 없으면 nan"""
         ds = sorted(d for a, d in self.pts if d > 0 and abs(wrap_deg(a - center)) <= half)
-        return ds[len(ds) // 2] if ds else math.inf
+        return ds[len(ds) // 2] if ds else math.nan
 
 
 def to_robot_frame(raw_deg, cfg):

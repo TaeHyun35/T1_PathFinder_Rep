@@ -73,6 +73,27 @@ DONE     앞쪽이 1.2m 넘게 비면 밖으로 나간 것
   이 상태에서는 `sector_min`/`ray` 가 응답 없는 앞쪽을 "아주 멂"으로 계산해, 막힌 앞을 열린 길로 볼 수 있음.
 - 실험 기록: [`docs/04_implementation/exp_2026-11-22_keyboard_lidar_ble_hand.md`](../../docs/04_implementation/exp_2026-11-22_keyboard_lidar_ble_hand.md)
 
+## 집에서 하는 시험 (미로, 피코 없이) — `hometest.py`
+
+결과는 자동으로 `logs/hometest_날짜.jsonl` 에 쌓인다. 줄자 없이 **라이다로 간 거리와 돈 각도를 자동으로 잰다**
+(방 벽이나 가구가 3m 안에 보이면 됨. 시뮬 확인: 회전 오차 0도, 20cm 직진 오차 ±0.3cm).
+
+| 순서 | 명령 | 하는 일 | 통과 기준 |
+|---|---|---|---|
+| 1 | `python3 hometest.py lidar` | 방향별 응답률. 앞이 손에 가려졌는지 판정 | 앞 ±30도 응답 50% 이상 |
+| 2 | `python3 hometest.py rot` | 제자리 회전 3번 → 돈 각도 자동 측정 → `speed_rot_deg` 저장 | 3번 값 차이 10% 안 |
+| 3 | `python3 hometest.py straight` | 앞으로 1.5초 → 간 거리, 틀어진 각도 → `speed_fwd` | 틀어짐 5도 안 |
+| 4 | `python3 hometest.py side` | 옆으로 → `speed_side` | 틀어짐 5도 안 |
+| 5 | `python3 hometest.py stopwall` | 벽으로 가다 40cm 에서 멈추기 (0.10, 0.15 m/s) | 오차 3cm 안 |
+| 6 | `python3 hometest.py follow --secs 20` | 방 벽 따라가기 | 벽 거리 오차 평균 3cm 안, "안 보임" 0번 |
+| 7 | `python3 hometest.py keys --n 10` | 손으로 F1~F4 10번씩. **키보드 수신기를 파이에 꽂으면 입력을 자동 확인** | 키마다 9/10 이상 |
+| 8 | `python3 hometest.py keys --code 4213 --n 5` | 비밀번호 순서대로 | 5/5 |
+| 9 | `python3 hometest.py see` | 동물 사진(폰/모니터/인쇄)과 마커를 거리·각도별로 20장씩 | 1m 정면 18/20 이상 |
+
+- 바퀴 시험(2~6)은 **충전 케이블을 뽑고** 주변 1m 를 비우고. 1번에서 앞이 가려졌다고 나오면 6번 전에 라이다를 올린다.
+- 라이다가 응답 없는 방향은 이제 "아주 멂"이 아니라 "모름"으로 다룬다. 벽 따라가기는 앞(손 쪽 포함)이 안 보이면 **멈춘다**.
+- 키 입력 자동 확인이 권한 오류면: `sudo usermod -aG input $USER` 후 다시 로그인 (또는 `--manual` 로 눈으로 확인).
+
 ## 내일 순서 (하나씩 통과하면 다음)
 
 1. **라이다 원인 확인:** 라이다 쓰는 다른 프로그램을 끄고 `python3 lidar_view.py`, 폰으로 `http://<파이IP>:8080`
