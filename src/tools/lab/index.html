@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>테스트 실험실</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --line: #e3e6eb; --ink: #1b1f24; --ink2: #4a525c; --muted: #7b848f;
+  --accent: #2a6fdb; --accent-ink: #ffffff; --s1: #2a6fdb; --s2: #d9730d; --grid: #eceef1;
+  --ok: #1f8a4c; --bad: #c4372c; --run: #2a6fdb; --code: #f0f2f5;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171b; --panel: #1c2026; --line: #2c323a; --ink: #e8ebef; --ink2: #b4bcc6; --muted: #8a939e;
+    --accent: #5b93f0; --accent-ink: #0d1117; --s1: #5b93f0; --s2: #f0953a; --grid: #262b32;
+    --ok: #3fb872; --bad: #ef6a5e; --run: #5b93f0; --code: #12151a;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 "Pretendard", "Malgun Gothic", system-ui, sans-serif; }
+header { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+header h1 { font-size: 18px; margin: 0; }
+.pill { font-size: 13px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink2); }
+.pill.running { border-color: var(--run); color: var(--run); }
+.wrap { display: grid; grid-template-columns: 250px 1fr; gap: 16px; padding: 16px 20px; max-width: 1400px; margin: 0 auto; }
+@media (max-width: 860px) { .wrap { grid-template-columns: 1fr; padding: 12px 16px; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; min-width: 0; }
+.card h2 { font-size: 15px; margin: 0 0 10px; }
+.side button.item { display: block; width: 100%; text-align: left; background: none; border: 1px solid transparent; color: var(--ink); padding: 8px 10px; border-radius: 8px; cursor: pointer; font: inherit; }
+.side button.item:hover { background: var(--bg); }
+.side button.item.on { border-color: var(--accent); }
+.side .hist { font-size: 13px; color: var(--ink2); }
+.side .hist small { color: var(--muted); display: block; }
+.desc { white-space: pre-line; color: var(--ink2); margin: 0 0 8px; }
+ol.steps { margin: 6px 0 0; padding-left: 20px; color: var(--ink2); }
+.groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 0; padding: 8px 12px 10px; min-width: 0; }
+fieldset.dim { opacity: .45; }
+legend { font-size: 13px; color: var(--muted); padding: 0 4px; }
+label.f { display: block; margin: 6px 0; font-size: 14px; }
+label.f .row { display: flex; gap: 8px; align-items: center; }
+label.f input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
+label.f input[type=number], label.f input[type=text], label.f select { width: 100%; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); font: inherit; }
+label.f .row input[type=number] { width: 76px; flex: none; }
+label.f small { color: var(--muted); display: block; font-size: 12px; }
+.btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.btn { padding: 8px 18px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; font: inherit; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn:disabled { opacity: .45; cursor: default; }
+.status { font-size: 20px; font-weight: 600; margin: 0; min-height: 30px; }
+.status small { font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 8px; }
+.tiles { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.tile { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; min-width: 120px; }
+.tile .k { font-size: 12px; color: var(--muted); }
+.tile .v { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 1100px) { .charts { grid-template-columns: 1fr; } }
+.chart { position: relative; }
+.chart svg { width: 100%; height: 260px; display: block; }
+.legend { display: flex; gap: 14px; font-size: 13px; color: var(--ink2); margin-bottom: 4px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 12px; color: var(--ink); display: none; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { border-bottom: 1px solid var(--line); padding: 5px 8px; text-align: left; }
+th { color: var(--muted); font-weight: 500; }
+.tablewrap { overflow-x: auto; max-height: 320px; overflow-y: auto; }
+pre.log { background: var(--code); border-radius: 8px; padding: 10px; max-height: 240px; overflow: auto; font-size: 13px; margin: 0; white-space: pre-wrap; }
+.bad { color: var(--bad); } .good { color: var(--ok); }
+.note { font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>테스트 실험실</h1>
+  <span id="pill" class="pill">대기</span>
+  <span class="note" id="viewing"></span>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="card"><h2>테스트</h2><div id="tests"></div></div>
+    <div class="card"><h2>지난 기록</h2><div id="history" class="hist"></div></div>
+  </aside>
+  <main>
+    <div class="card">
+      <h2 id="title"></h2>
+      <p class="desc" id="desc"></p>
+      <details open><summary class="note">진행 순서</summary><ol class="steps" id="steps"></ol></details>
+    </div>
+    <div class="card">
+      <h2>설정</h2>
+      <div class="groups" id="form"></div>
+      <div class="btns">
+        <button class="btn primary" id="runBtn">실행</button>
+        <button class="btn" id="stopBtn" disabled>멈춤</button>
+        <button class="btn" id="resetBtn">기본값</button>
+      </div>
+    </div>
+    <div class="card">
+      <p class="status" id="status">아직 실행 안 함</p>
+      <div class="tiles" id="tiles"></div>
+    </div>
+    <div class="charts" id="charts"></div>
+    <div class="card"><h2>회차별 결과</h2><div class="tablewrap"><table id="table"></table></div></div>
+    <div class="card" id="imgCard" style="display:none"><h2>그림 (지도)</h2><div id="imgs"></div></div>
+    <div class="card"><h2>진행 기록</h2><pre class="log" id="log"></pre></div>
+  </main>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+let TESTS = [], test = null, runName = null, since = 0, running = false;
+let chartData = {};   // chart id -> {points: [], marks: []} 또는 rows
+let rows = [];
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: 'POST', body: JSON.stringify(body) } : {});
+  return r.json();
+}
+
+// ---------- 테스트 목록 / 설정 폼
+function renderTests() {
+  $('tests').innerHTML = '';
+  for (const t of TESTS) {
+    const b = document.createElement('button');
+    b.className = 'item' + (test && t.id === test.id ? ' on' : '');
+    b.textContent = t.title;
+    b.onclick = () => selectTest(t.id);
+    $('tests').appendChild(b);
+  }
+}
+
+function saved(id) { try { return JSON.parse(localStorage.getItem('lab:' + id) || 'null'); } catch { return null; } }
+function save(id, v) { try { localStorage.setItem('lab:' + id, JSON.stringify(v)); } catch {} }
+
+function selectTest(id, params) {
+  test = TESTS.find(t => t.id === id);
+  renderTests();
+  $('title').textContent = test.title;
+  $('desc').textContent = test.desc;
+  $('steps').innerHTML = test.steps.map(s => `<li>${s}</li>`).join('');
+  buildForm(params || saved(id) || {});
+  buildCharts();
+}
+
+function buildForm(values) {
+  const groups = {};
+  for (const p of test.params) (groups[p.group || '설정'] ||= []).push(p);
+  $('form').innerHTML = '';
+  for (const [g, ps] of Object.entries(groups)) {
+    const fs = document.createElement('fieldset');
+    fs.dataset.group = g;
+    fs.innerHTML = `<legend>${g}</legend>`;
+    for (const p of ps) {
+      const v = values[p.key] ?? p.default;
+      const l = document.createElement('label'); l.className = 'f';
+      let input;
+      if (p.type === 'select') {
+        input = `<select data-k="${p.key}">${p.options.map(([val, txt]) => `<option value="${val}" ${String(val) === String(v) ? 'selected' : ''}>${txt}</option>`).join('')}</select>`;
+      } else if (p.type === 'text') {
+        input = `<input type="text" data-k="${p.key}" value="${v ?? ''}">`;
+      } else {
+        input = `<div class="row"><input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${v}" data-r="${p.key}">` +
+                `<input type="number" min="${p.min}" max="${p.max}" step="${p.step}" value="${v}" data-k="${p.key}"></div>`;
+      }
+      l.innerHTML = `${p.label}${input}${p.help ? `<small>${p.help}</small>` : ''}`;
+      fs.appendChild(l);
+    }
+    $('form').appendChild(fs);
+  }
+  // 슬라이더와 숫자칸 연결
+  $('form').querySelectorAll('input[type=range]').forEach(r => {
+    const n = $('form').querySelector(`input[data-k="${r.dataset.r}"]`);
+    r.oninput = () => { n.value = r.value; onChange(); };
+    n.oninput = () => { r.value = n.value; onChange(); };
+  });
+  $('form').querySelectorAll('select,input[type=text]').forEach(e => e.oninput = () => { applyAuto(e.dataset.k); onChange(); });
+  onChange();
+}
+
+function setVal(k, v) {
+  const e = $('form').querySelector(`[data-k="${k}"]`); if (e) e.value = v;
+  const r = $('form').querySelector(`[data-r="${k}"]`); if (r) r.value = v;
+}
+function applyAuto(k) {
+  const rule = test.auto && test.auto[k]; if (!rule) return;
+  const v = getParams()[k];
+  const set = rule[v] || rule['*'];
+  if (set) for (const [kk, vv] of Object.entries(set)) setVal(kk, vv);
+}
+function getParams() {
+  const o = {};
+  $('form').querySelectorAll('[data-k]').forEach(e => o[e.dataset.k] = e.value);
+  return o;
+}
+function onChange() {
+  const p = getParams();
+  save(test.id, p);
+  // 모드에 따라 안 쓰는 칸은 흐리게
+  $('form').querySelectorAll('fieldset').forEach(fs => {
+    fs.classList.toggle('dim', (fs.dataset.group === '시뮬레이션' && p.mode === 'real') || (fs.dataset.group === '실제 손' && p.mode === 'sim'));
+  });
+}
+
+// ---------- 차트 (SVG 직접 그림)
+function buildCharts() {
+  chartData = {}; rows = [];
+  $('charts').innerHTML = '';
+  for (const c of test.charts) {
+    chartData[c.id] = { points: [], marks: [] };
+    const d = document.createElement('div'); d.className = 'card chart';
+    let legend = '';
+    if (c.type === 'line') legend = `<div class="legend"><span><i style="background:var(--ink2)"></i>각도</span>` +
+      Object.entries(c.marks || {}).map(([k, t], i) => `<span><i style="background:var(--s${i + 1})"></i>${t}</span>`).join('') + '</div>';
+    if (c.type === 'dots') legend = '<div class="legend">' + c.series.map(([k, t], i) => `<span><i style="background:var(--s${i + 1})"></i>${t}</span>`).join('') + '</div>';
+    d.innerHTML = `<h2>${c.title}</h2>${legend}<svg id="svg-${c.id}"></svg><div class="tip" id="tip-${c.id}"></div>`;
+    $('charts').appendChild(d);
+  }
+  drawAll(); renderTable(); $('tiles').innerHTML = '';
+}
+
+const M = { l: 44, r: 12, t: 10, b: 28 };
+function scale(d0, d1, r0, r1) { const k = (r1 - r0) / ((d1 - d0) || 1); return v => r0 + (v - d0) * k; }
+function ticks(a, b, n = 5) {
+  const span = Math.abs(b - a) || 1, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 5, 10].map(x => x * mag).find(x => x >= step0);
+  const lo = Math.ceil(Math.min(a, b) / step) * step, out = [];
+  for (let v = lo; v <= Math.max(a, b) + 1e-9; v += step) out.push(+v.toFixed(6));
+  return out;
+}
+function frame(svg, xs, ys, xLabel, yLabel, xt, yt) {
+  const W = svg.clientWidth || 500, H = svg.clientHeight || 260;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  let s = '';
+  for (const v of yt) s += `<line x1="${M.l}" x2="${W - M.r}" y1="${ys(v)}" y2="${ys(v)}" stroke="${css('--grid')}"/>` +
+    `<text x="${M.l - 6}" y="${ys(v) + 4}" text-anchor="end" font-size="11" fill="${css('--muted')}">${v}</text>`;
+  for (const v of xt) s += `<text x="${xs(v)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="${css('--muted')}">${v}</text>`;
+  s += `<text x="${W - M.r}" y="${H - 8}" text-anchor="end" font-size="11" fill="${css('--muted')}" dy="-12">${xLabel}</text>`;
+  s += `<text x="${M.l}" y="${M.t + 2}" font-size="11" fill="${css('--muted')}" dx="4">${yLabel}</text>`;
+  return { W, H, s };
+}
+function yKeys(c) { const k = (c && c.y_keys) || ['start', 'limit']; const p = getParams(); return [+p[k[0]], +p[k[1]]]; }
+function yDomain(extra, c) {
+  let [a, b] = yKeys(c);
+  if (isNaN(a) || isNaN(b)) { a = Math.min(...extra); b = Math.max(...extra); }
+  return [Math.min(a, b, ...extra), Math.max(a, b, ...extra)];
+}
+
+function drawLine(c) {
+  const svg = $('svg-' + c.id), d = chartData[c.id];
+  const pts = d.points;
+  const W0 = svg.clientWidth || 500, H0 = svg.clientHeight || 260;
+  const tMax = Math.max(5, ...pts.map(p => p.x));
+  const [y0, y1] = yDomain(pts.map(p => p.y), c);
+  // 굽힐수록 아래로 가게: 시작 각도를 위에
+  const [ka, kb] = yKeys(c), flip = ka > kb;
+  const xs = scale(0, tMax, M.l, W0 - M.r);
+  const ys = flip ? scale(y0, y1, H0 - M.b, M.t) : scale(y1, y0, H0 - M.b, M.t);
+  const f = frame(svg, xs, ys, '초', c.y_label, ticks(0, tMax), ticks(y0, y1));
+  let s = f.s;
+  // 회차 사이 끊어서 그림
+  let path = '', prev = null;
+  for (const q of pts) { path += (prev && prev.trial === q.trial ? 'L' : 'M') + xs(q.x).toFixed(1) + ' ' + ys(q.y).toFixed(1); prev = q; }
+  s += `<path d="${path}" fill="none" stroke="${css('--ink2')}" stroke-width="2" stroke-linejoin="round"/>`;
+  const keys = Object.keys(c.marks || {});
+  for (const m of d.marks) {
+    const col = css('--s' + (keys.indexOf(m.mark) + 1));
+    s += `<circle cx="${xs(m.x)}" cy="${ys(m.y)}" r="5" fill="${col}" stroke="${css('--panel')}" stroke-width="2"/>`;
+  }
+  const last = pts[pts.length - 1];
+  if (last && running) s += `<text x="${xs(last.x) + 6}" y="${ys(last.y) - 6}" font-size="12" fill="${css('--ink')}">${last.y}도</text>`;
+  svg.innerHTML = s;
+  hover(svg, c.id, [...pts.map(q => ({ ...q, label: `${q.trial}회 · ${q.x.toFixed(1)}초 · ${q.y}도${q.pressed ? ' · 눌림 상태' : ''}` })),
+    ...d.marks.map(m => ({ ...m, label: `${m.trial}회 ${c.marks[m.mark]}: ${m.y}도` }))], xs, ys);
+}
+
+function drawDots(c) {
+  const svg = $('svg-' + c.id);
+  const W0 = svg.clientWidth || 500, H0 = svg.clientHeight || 260;
+  const n = Math.max(+getParams().n || +getParams().cycles || 1, rows.length, 1);
+  const vals = rows.flatMap(r => c.series.map(([k]) => r[k]).filter(v => v != null));
+  const [y0, y1] = vals.length ? [Math.min(...vals) - 3, Math.max(...vals) + 3] : yDomain([], c);
+  const [ka, kb] = yKeys(c), flip = ka > kb;
+  const xs = scale(0.5, n + 0.5, M.l, W0 - M.r);
+  const ys = flip ? scale(y0, y1, H0 - M.b, M.t) : scale(y1, y0, H0 - M.b, M.t);
+  const xt = n <= 12 ? Array.from({ length: n }, (_, i) => i + 1) : ticks(1, n);
+  const f = frame(svg, xs, ys, '회', c.y_label, xt, ticks(y0, y1));
+  let s = f.s; const hv = [];
+  c.series.forEach(([k, t], i) => {
+    const col = css('--s' + (i + 1));
+    const v = rows.map(r => r[k]).filter(x => x != null);
+    if (v.length > 1) {
+      const mean = v.reduce((a, b) => a + b, 0) / v.length;
+      s += `<line x1="${M.l}" x2="${W0 - M.r}" y1="${ys(mean)}" y2="${ys(mean)}" stroke="${col}" stroke-dasharray="4 4" stroke-width="1"/>` +
+           `<text x="${W0 - M.r}" y="${ys(mean) - 4}" text-anchor="end" font-size="11" fill="${css('--ink2')}">${t} 평균 ${mean.toFixed(1)}</text>`;
+    }
+    for (const r of rows) if (r[k] != null) {
+      s += `<circle cx="${xs(r[c.x])}" cy="${ys(r[k])}" r="5" fill="${col}" stroke="${css('--panel')}" stroke-width="2"/>`;
+      hv.push({ x: r[c.x], y: r[k], label: `${r[c.x]}회 ${t}: ${r[k]}도` });
+    }
+  });
+  for (const r of rows) if (r.성공 === false) s += `<text x="${xs(r[c.x])}" y="${H0 - M.b - 4}" text-anchor="middle" font-size="11" fill="${css('--bad')}">실패</text>`;
+  svg.innerHTML = s;
+  hover(svg, c.id, hv, xs, ys);
+}
+
+function hover(svg, id, pts, xs, ys) {
+  const tip = $('tip-' + id);
+  svg.onmousemove = (e) => {
+    const b = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal, k = vb.width / b.width;
+    const mx = (e.clientX - b.left) * k, my = (e.clientY - b.top) * k;
+    let best = null, bd = 1e9;
+    for (const p of pts) { const d = Math.hypot(xs(p.x) - mx, ys(p.y) - my); if (d < bd) { bd = d; best = p; } }
+    if (!best || bd > 30) { tip.style.display = 'none'; return; }
+    tip.textContent = best.label; tip.style.display = 'block';
+    tip.style.left = Math.min(xs(best.x) / k + 10, b.width - tip.offsetWidth - 4) + 'px';
+    tip.style.top = (ys(best.y) / k + 30) + 'px';
+  };
+  svg.onmouseleave = () => tip.style.display = 'none';
+}
+
+function drawAll() { for (const c of test.charts) (c.type === 'line' ? drawLine : drawDots)(c); }
+
+function renderTable() {
+  const cols = test.columns;
+  $('table').innerHTML = `<tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr>` +
+    rows.map(r => `<tr>${cols.map(c => {
+      const v = r[c];
+      if (v === true) return '<td class="good">성공</td>';
+      if (v === false) return '<td class="bad">실패</td>';
+      return `<td>${v ?? '-'}</td>`;
+    }).join('')}</tr>`).join('');
+}
+function renderTiles(s) {
+  $('tiles').innerHTML = Object.entries(s).map(([k, v]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+}
+function log(t) { const l = $('log'); l.textContent += t + '\n'; l.scrollTop = l.scrollHeight; }
+
+// ---------- 실행 / 폴링
+$('runBtn').onclick = async () => {
+  buildCharts(); $('log').textContent = ''; $('viewing').textContent = ''; clearImages();
+  const r = await api('/api/run', { test: test.id, params: getParams() });
+  if (!r.ok) { log(r.msg); return; }
+  runName = r.msg; since = 0; running = true; setRunning(true);
+};
+$('stopBtn').onclick = () => api('/api/stop', {});
+$('resetBtn').onclick = () => { buildForm({}); };
+
+function setRunning(on) {
+  running = on;
+  $('runBtn').disabled = on; $('stopBtn').disabled = !on;
+  $('pill').textContent = on ? '실행 중' : '대기'; $('pill').classList.toggle('running', on);
+}
+
+async function poll() {
+  try {
+    const r = await api(`/api/poll?since=${since}&name=${runName || ''}`);
+    if (r.name && r.name !== runName) {            // 다른 창에서 시작한 실행도 따라감
+      runName = r.name; since = 0;
+      if (!test || test.id !== r.test) selectTest(r.test, r.params); else buildCharts();
+      $('log').textContent = ''; clearImages();
+    }
+    if (r.name) {
+      for (const e of r.events) {
+        since = e.seq + 1;
+        if (e.kind === 'log') log(e.text);
+        else if (e.kind === 'status') $('status').innerHTML = e.text + `<small>${e.t.toFixed(1)}초</small>`;
+        else if (e.kind === 'point') {
+          const d = chartData[e.chart]; if (!d) continue;
+          const q = { x: e.x ?? e.t, y: e.y, trial: e.trial, pressed: e.pressed, mark: e.mark };
+          (e.mark ? d.marks : d.points).push(q);
+        } else if (e.kind === 'row') { rows.push(e.data); renderTable(); }
+        else if (e.kind === 'summary') renderTiles(e.data);
+        else if (e.kind === 'image') addImage(e.path, e.caption);
+      }
+      if (r.events.length && test) drawAll();
+      if (r.running !== running) { setRunning(r.running); if (!r.running) loadHistory(); }
+    }
+  } catch (e) { $('pill').textContent = '서버 연결 끊김'; }
+  setTimeout(poll, running ? 150 : 800);
+}
+
+function clearImages() { $('imgs').innerHTML = ''; $('imgCard').style.display = 'none'; }
+function addImage(path, caption) {
+  $('imgCard').style.display = '';
+  const f = document.createElement('figure'); f.style.margin = '0 0 12px';
+  f.innerHTML = `<img style="max-width:100%;border-radius:8px" src="/api/img?path=${encodeURIComponent(path)}&t=${Date.now()}"><figcaption style="font-size:13px;opacity:.75">${caption || ''}</figcaption>`;
+  $('imgs').appendChild(f);
+}
+
+// ---------- 지난 기록
+async function loadHistory() {
+  const h = await api('/api/history');
+  $('history').innerHTML = h.length ? '' : '아직 없음';
+  for (const x of h) {
+    const b = document.createElement('button'); b.className = 'item';
+    const s = x.summary || {};
+    b.innerHTML = `${x.title}${x.params && x.params.mode === 'sim' ? ' (시뮬)' : ''}<small>${x.time} · ${s['성공'] ?? '-'}${s['평균 눌림 각도'] != null ? ' · 평균 ' + s['평균 눌림 각도'] + '도' : ''}${x.stopped ? ' · 멈춤' : ''}</small>`;
+    b.onclick = () => openHistory(x.name);
+    $('history').appendChild(b);
+  }
+}
+async function openHistory(name) {
+  if (running) return;
+  const d = await api('/api/history_one?name=' + encodeURIComponent(name));
+  selectTest(d.test, d.params);
+  rows = d.rows || []; renderTable(); renderTiles(d.summary || {}); drawAll();
+  clearImages(); for (const im of (d.images || [])) addImage(im.path, im.caption);
+  $('status').textContent = '지난 기록 보기: ' + d.time;
+  $('viewing').textContent = '지난 기록을 보는 중 (설정도 그때 값으로 바뀜, 실행하면 이 설정으로 다시 해요)';
+  $('log').textContent = '설정: ' + JSON.stringify(d.params);
+}
+
+window.onresize = () => test && drawAll();
+(async () => {
+  TESTS = await api('/api/tests');
+  selectTest(TESTS[0].id);
+  loadHistory();
+  poll();
+})();
+</script>
+</body>
+</html>

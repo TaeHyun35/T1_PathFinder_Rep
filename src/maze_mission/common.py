@@ -50,17 +50,21 @@ DEFAULTS = {
         "confirm": 3,               # 같은 동물을 이만큼 보면 확정
         "every_s": 0.4,
     },
-    "animals": {                    # YOLO(COCO) 이름 -> 한국어, 누를 숫자
-        "cat": {"ko": "고양이", "digit": "1"},
-        "dog": {"ko": "강아지", "digit": "2"},
-        "bird": {"ko": "새", "digit": "3"},
-        "horse": {"ko": "말", "digit": "4"},
+    "animals": {                    # 11/26 흑백 카드 6종 (숫자는 카드에 인쇄 -> 카메라로 읽음). digit 는 시뮬 기본값
+        "dog": {"ko": "강아지", "digit": "1"},
+        "panda": {"ko": "판다", "digit": "2"},
+        "turtle": {"ko": "거북이", "digit": "3"},
+        "rabbit": {"ko": "토끼", "digit": "4"},
+        "giraffe": {"ko": "기린", "digit": "1"},
+        "elephant": {"ko": "코끼리", "digit": "2"},
     },
     "mission": {
         "expect": 3,                # 찾아야 할 동물 수
-        "code_rule": "sorted",      # sorted = 숫자 작은 순 (문 스테이션이 정답을 미리 알 수 있음) / found_order = 찾은 순서 / fixed = fixed_order 순
-        "fixed_order": [],          # 예: ["dog", "cat", "bird"] (음성으로 받은 순서)
-        "keypad_marker": 0,         # 키패드 위에 붙인 ArUco 번호
+        "code_rule": "spoken",      # spoken = 말한 순서대로 각 카드의 숫자 / sorted / found_order / fixed
+        "fixed_order": [],          # 말한 순서 (예: ["dog", "panda", "giraffe"]). 비어 있으면 PC 가 음성으로 보내 줄 때까지 기다림
+        "cards": 6,                 # 시뮬: 벽에 붙일 카드 수 (말한 것 + 헷갈리게 하는 것)
+        "end": "exit",              # exit = 맞게 누르면 마커 1번(탈출구)으로 가서 끝 / door = 문 통과
+        "keypad_marker": 2,         # 키보드(키패드) 뒤에 붙인 ArUco 번호 (전에 뽑은 1~6번 마커 중 2번, 11/26)
         "door_marker": 1,           # 출구 문에 붙인 ArUco 번호
         "press_dist": 0.22,         # 키패드 벽까지 이 거리(라이다 중심 기준)에서 누름 -> 현장에서 잼
         "align_tol": 0.04,          # 마커 가운데 맞춤 허용 (화면 폭 비율)
