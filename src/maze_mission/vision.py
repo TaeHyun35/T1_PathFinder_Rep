@@ -9,6 +9,19 @@ import time
 import urllib.request
 
 
+def find_c270(default=0):
+    """C270 의 /dev/videoN 번호 (켤 때마다 0 또는 8 로 바뀜, 11/27)"""
+    import subprocess
+    try:
+        out = subprocess.run(["v4l2-ctl", "--list-devices"], capture_output=True, text=True, timeout=5).stdout.splitlines()
+        for i, l in enumerate(out):
+            if "C270" in l and i + 1 < len(out) and "/dev/video" in out[i + 1]:
+                return int(out[i + 1].strip().replace("/dev/video", ""))
+    except Exception:
+        pass
+    return default
+
+
 class Camera:
     """마지막 프레임만 들고 있는 카메라 (밀린 프레임 때문에 늦어지는 것 방지)"""
 
@@ -22,11 +35,13 @@ class Camera:
             self.picam.configure(self.picam.create_video_configuration(main={"size": (cfg["width"], cfg["height"]), "format": "RGB888"}))
             self.picam.start()
         else:
-            self.cap = cv2.VideoCapture(cfg["index"])
+            idx = find_c270(cfg["index"]) if cfg.get("auto_find", True) else cfg["index"]
+            self.cap = cv2.VideoCapture(idx, cv2.CAP_V4L2) if hasattr(cv2, "CAP_V4L2") and cfg.get("v4l2", True) else cv2.VideoCapture(cfg["index"])
+            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, cfg["width"])
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, cfg["height"])
             if not self.cap.isOpened():
-                raise RuntimeError(f"카메라 {cfg['index']} 번을 못 엶 (ls /dev/video* 로 확인)")
+                raise RuntimeError(f"카메라 {idx} 번을 못 엶 (ls /dev/video* 로 확인)")
         self._lock = threading.Lock()
         threading.Thread(target=self._run, daemon=True).start()
 

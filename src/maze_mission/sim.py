@@ -84,10 +84,13 @@ class World:
         dc = C - 1
         self.door = ((dc * CELL_W, H), ((dc + 1) * CELL_W, H))
         self.walls += [((0, 0), (W, 0)), ((W, 0), (W, H)), ((0, H), (dc * CELL_W, H)), ((0, 0), (0, H))]
+        # 미로 바깥 방 벽 (실제로도 라이다는 방 벽을 본다. 없으면 바깥이 전부 "응답 없음")
+        m = 1.5
+        self.room = [((-m, -m), (W + m, -m)), ((W + m, -m), (W + m, H + m)), ((W + m, H + m), (-m, H + m)), ((-m, H + m), (-m, -m))]
         self.door_open = False
 
     def all_walls(self):
-        return self.walls + ([] if self.door_open else [self.door])
+        return self.walls + self.room + ([] if self.door_open else [self.door])
 
     def _props(self):
         rng, cfg = self.rng, self.cfg
@@ -114,8 +117,11 @@ class World:
         rng.shuffle(faces)
         names = list(cfg["animals"].keys())
         rng.shuffle(names)
-        n = cfg["mission"]["expect"]
-        self.cards = [{"label": names[i], "x": f[0], "y": f[1], "nx": f[2], "ny": f[3]} for i, f in enumerate(faces[:n])]
+        n = min(len(names), cfg["mission"].get("cards", cfg["mission"]["expect"]))
+        self.cards = [{"label": names[i], "digit": str(rng.randint(1, 4)), "x": f[0], "y": f[1], "nx": f[2], "ny": f[3]}
+                      for i, f in enumerate(faces[:n])]
+        if not cfg["mission"].get("fixed_order"):       # 말한 순서 (음성 대신): 붙은 카드 중 expect 개
+            cfg["mission"]["fixed_order"] = [c["label"] for c in rng.sample(self.cards, min(cfg["mission"]["expect"], len(self.cards)))]
 
     # ---------- 물리 ----------
     def step(self, dt):
@@ -146,6 +152,13 @@ class World:
             if point_seg_dist(x, y, s) < ROBOT_R or point_seg_dist(hx, hy, s) < 0.005:
                 return True
         return False
+
+    def card_at_finger(self):
+        """11/27 카드 키 누르기 시험: 손끝에 가장 가까운 카드 (이름, 손끝~카드 거리 m)"""
+        hx = self.x + math.cos(self.th) * (ROBOT_R + HAND_REACH)
+        hy = self.y + math.sin(self.th) * (ROBOT_R + HAND_REACH)
+        best = min(self.cards, key=lambda c: math.hypot(c["x"] - hx, c["y"] - hy))
+        return best["label"], round(math.hypot(best["x"] - hx, best["y"] - hy), 3)
 
     def outside(self):
         return self.y > self.H + 0.25
@@ -210,6 +223,9 @@ class SimCar:
     def stop(self):
         self.drive(0.0, 0.0, 0.0)
 
+    def soft_stop(self, max_s=1.0):
+        self.stop()
+
 
 class SimVision:
     """앞 카메라: 시야각 안, 1.6 m 안, 가려지지 않고, 카드를 너무 비스듬히 보지 않으면 보임"""
@@ -239,10 +255,12 @@ class SimVision:
         for c in w.cards:
             v = self._view(c)
             if v and w.rng.random() > self.miss:
-                lab = c["label"]
+                lab, dg = c["label"], c.get("digit", "")
                 if w.rng.random() < self.wrong:
                     lab = w.rng.choice(list(w.cfg["animals"].keys()))
-                out["animals"].append({"label": lab, "conf": 0.8, "cx": v[1], "w": 0.15 / v[0]})
+                if w.rng.random() < self.wrong:
+                    dg = str(w.rng.randint(1, 4))
+                out["animals"].append({"label": lab, "digit": dg, "conf": 0.8, "cx": v[1], "w": 0.15 / v[0], "d": v[0]})
         for m in w.markers:
             v = self._view(m)
             if v and w.rng.random() > 0.1:

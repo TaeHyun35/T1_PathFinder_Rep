@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>길잡이 시연</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d1117; --panel:#151b24; --panel2:#1b2330; --line:#263042; --ink:#e8edf4; --ink2:#a9b4c4; --mute:#6f7c90;
+  --acc:#4cc2ff; --acc2:#7c6cff; --ok:#3ccf8e; --warn:#ffb547; --bad:#ff5d6c; --chip:#212b3a;
+  --shadow:0 10px 30px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 600px at 10% -10%,#1a2440 0%,transparent 60%),radial-gradient(900px 500px at 110% 0%,#2a1d48 0%,transparent 55%),var(--bg);
+  color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif;min-height:100vh}
+header{display:flex;align-items:center;gap:16px;padding:22px 28px 10px}
+.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--acc),var(--acc2));display:grid;place-items:center;font-weight:900;font-size:20px;box-shadow:var(--shadow)}
+h1{font-size:22px;margin:0;font-weight:900;letter-spacing:-.3px}
+.sub{color:var(--ink2);font-size:13px;margin-top:2px}
+.pill{margin-left:auto;padding:7px 14px;border-radius:999px;background:var(--chip);color:var(--ink2);font-size:13px;border:1px solid var(--line)}
+.pill.run{color:#04121c;background:var(--acc);border-color:transparent;font-weight:700;animation:pulse 1.4s infinite}
+@keyframes pulse{50%{opacity:.75}}
+main{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px;padding:12px 28px 28px}
+@media (max-width:1000px){main{grid-template-columns:1fr;padding:12px 16px 20px}header{padding:18px 16px 6px}}
+.track{display:flex;gap:6px;margin:6px 0 16px}
+.track i{flex:1;height:6px;border-radius:6px;background:var(--line);transition:.3s}
+.track i.done{background:var(--ok)} .track i.now{background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.stage{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:18px;padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow);transition:.25s;position:relative}
+.stage.active{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc),var(--shadow)}
+.stage .top{display:flex;align-items:center;gap:14px}
+.num{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:900;font-size:18px;background:var(--chip);color:var(--ink2);flex:none}
+.stage.done .num{background:var(--ok);color:#04120b} .stage.active .num{background:var(--acc);color:#04121c}
+.stage.fail .num{background:var(--bad);color:#200}
+.ttl{font-weight:700;font-size:17px}
+.desc{color:var(--ink2);font-size:13.5px;margin-top:3px;line-height:1.5}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.tag{font-size:11.5px;padding:3px 9px;border-radius:999px;background:var(--chip);color:var(--ink2);border:1px solid var(--line)}
+.st{margin-left:auto;font-size:12.5px;color:var(--mute);white-space:nowrap}
+.stage.done .st{color:var(--ok)} .stage.active .st{color:var(--acc)} .stage.fail .st{color:var(--bad)}
+.go{margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+button{font-family:inherit;font-size:14px;font-weight:700;border:0;border-radius:12px;padding:10px 18px;cursor:pointer;transition:.15s}
+.run{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff}
+.run:disabled{opacity:.35;cursor:not-allowed}
+.stop{background:var(--bad);color:#fff;padding:12px 22px;font-size:15px}
+.ghost{background:var(--chip);color:var(--ink2);border:1px solid var(--line)}
+.animals{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.an{padding:8px 12px;border-radius:12px;background:var(--chip);border:1px solid var(--line);color:var(--ink);font-weight:500;font-size:14px}
+.an.sel{background:rgba(76,194,255,.16);border-color:var(--acc);color:var(--acc)}
+.an b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:6px;background:var(--acc);color:#04121c;font-size:12px;margin-right:6px}
+.order{font-size:14px;color:var(--ink2);margin-top:10px}
+.order strong{color:var(--ink)}
+.side .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:18px;padding:16px 18px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card h2{font-size:14px;margin:0 0 10px;color:var(--ink2);font-weight:700;letter-spacing:.2px}
+.now{font-size:18px;font-weight:700;line-height:1.4}
+.now small{display:block;color:var(--mute);font-size:12.5px;font-weight:400;margin-top:4px}
+.cam{width:100%;aspect-ratio:4/3;border-radius:12px;background:#0a0e14;object-fit:cover;display:block;border:1px solid var(--line)}
+.camwrap{position:relative}.camwrap span{position:absolute;left:10px;top:10px;font-size:11.5px;background:rgba(0,0,0,.55);padding:3px 8px;border-radius:999px;color:#fff}
+.say{display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto}
+.bub{align-self:flex-start;background:var(--chip);border:1px solid var(--line);padding:9px 13px;border-radius:14px 14px 14px 4px;font-size:14.5px;max-width:95%;animation:pop .25s}
+.bub small{display:block;color:var(--mute);font-size:11px;margin-top:2px}
+@keyframes pop{from{transform:translateY(6px);opacity:0}}
+.map img{width:100%;border-radius:12px;border:1px solid var(--line);background:#fff}
+details{margin-top:4px} summary{cursor:pointer;color:var(--ink2);font-size:13px}
+pre{white-space:pre-wrap;font-size:12px;color:var(--ink2);max-height:240px;overflow:auto;background:#0a0e14;border-radius:10px;padding:10px;border:1px solid var(--line)}
+.stopbar{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+.hint{color:var(--mute);font-size:12.5px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">길</div>
+  <div><h1>길잡이 · 미로 탈출 로봇</h1><div class="sub">라이다 지도 + 카메라 인식 + 음성 명령 · 단계별 시연</div></div>
+  <div class="pill" id="pill">대기</div>
+</header>
+<div id="srv" style="display:none;margin:0 28px 6px;padding:12px 16px;border-radius:14px;background:rgba(255,181,71,.12);border:1px solid var(--warn);color:var(--ink);font-size:14px;line-height:1.6">
+  <b>시연 서버가 꺼져 있어요.</b> 로봇을 움직이려면 이 노트북에서 <code>src	ools\demoun_demo.bat</code> 을 실행하세요 (처음 한 번은 <code>install.bat</code>).
+  서버 없이도 아래에서 단계 설명과 실제 결과 그림은 볼 수 있어요.
+</div>
+<main>
+  <section>
+    <div class="track" id="track"><i></i><i></i><i></i><i></i><i></i></div>
+    <div id="stages"></div>
+  </section>
+  <section class="side">
+    <div class="stopbar"><button class="stop" id="stopBtn">■ 멈춤</button><span class="hint">누르면 로봇이 바로 섭니다</span></div>
+    <div class="card"><h2>지금</h2><div class="now" id="now">단계를 골라 실행하세요<small>로봇은 테이프 네모 한가운데, 1.5m 변과 나란히 놓습니다</small></div></div>
+    <div class="card"><h2>로봇 카메라</h2><div class="camwrap"><img class="cam" id="cam" alt=""><span id="camtag">꺼짐</span></div></div>
+    <div class="card"><h2>로봇이 말한 것</h2><div class="say" id="say"><div class="hint">아직 없음</div></div></div>
+    <div class="card map" id="mapCard" style="display:none"><h2>지도</h2><div id="maps"></div></div>
+    <div class="card"><details><summary>자세한 기록</summary><pre id="log"></pre></details></div>
+    <div class="card map"><h2>11/27 실제 결과</h2>
+      <img src="img/room_map.png" alt="방 전체 라이다 지도와 카드 위치"><div class="hint" style="margin:6px 0 14px">2단계: 방 전체를 돌며 만든 라이다 지도 + 찾은 카드 위치</div>
+      <img src="img/tape_cards.png" alt="테이프 미로 지도와 카드 6장 위치"><div class="hint" style="margin:6px 0 14px">3단계: 테이프 미로 안에서 찾은 카드 6장 위치 (테이프 선 위에 찍힘)</div>
+      <img src="img/tape_map.png" alt="위치 바로잡기 후 또렷한 지도"><div class="hint" style="margin:6px 0">출발 사진으로 0.7초마다 위치를 바로잡은 뒤의 지도와 로봇 길</div>
+    </div>
+  </section>
+</main>
+<script>
+const STAGES = [
+  {n:1, t:"보정", d:"바퀴 방향을 확인하고 제자리에서 한 바퀴 돌며 실제 회전 속도를 잽니다. 출발 자리 라이다 사진을 기준으로 삼습니다.", tags:["바퀴 방향 확인","회전 속도 측정","라이다 기준 사진"]},
+  {n:2, t:"지도 생성", d:"방 전체를 벽 따라 스스로 돌아다니며 라이다로 지도를 만들고, 안 본 곳을 찾아간 뒤 출발점으로 돌아옵니다.", tags:["LiDAR","스캔 매칭(ICP)","벽 따라가기","안 본 곳 찾아가기","장애물 피하기"]},
+  {n:3, t:"동물 · 탈출 위치 찾기", d:"테이프 미로 안을 돌며 카메라로 동물 카드(그림+숫자)와 탈출 위치(2번 마커)를 찾아 지도 위 위치를 기억합니다. 놓아 둔 카드를 다 찾으면 끝납니다.", tags:["YOLO 카드 인식","숫자 읽기","ArUco 마커","위치 기억"], cards:true},
+  {n:4, t:"말한 동물 찾아가기", d:"말한 순서대로, 기억한 위치로 곧장 가서 카메라로 동물을 확인하고 정면에 섭니다.", tags:["음성 명령","길 찾기(A*)","카메라로 맞추기"], order:true},
+  {n:5, t:"탈출", d:"기억한 탈출 위치로 가서 정면에 맞춘 뒤 밀고 나갑니다.", tags:["위치 기억","정면 맞추기"]},
+];
+const ANIMALS = [["dog","강아지"],["rabbit","토끼"],["elephant","코끼리"],["panda","판다"],["turtle","거북이"],["giraffe","기린"]];
+let placed = ["강아지","토끼","코끼리","판다","거북이","기린"];
+let order = ["강아지","토끼","코끼리"], voice = false, runName = null, since = 0, running = false, curStage = null;
+const state = JSON.parse(localStorageGet("gj_state") || "{}");
+function localStorageGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function save(){try{localStorage.setItem("gj_state", JSON.stringify(state))}catch(e){}}
+const $ = id => document.getElementById(id);
+// 깃허브 페이지에서 열면 이 노트북에서 켠 시연 서버(127.0.0.1:8770)로 연결
+const BASE = (location.hostname.endsWith("github.io") || location.protocol === "file:") ? "http://127.0.0.1:8770" : "";
+let SERVER_OK = null;
+
+function render(){
+  $("stages").innerHTML = STAGES.map(s => {
+    const st = state[s.n] || "";
+    const cls = curStage===s.n && running ? "active" : st==="done" ? "done" : st==="fail" ? "fail" : "";
+    const stTxt = curStage===s.n && running ? "진행 중" : st==="done" ? "완료" : st==="fail" ? "다시 해 보기" : "대기";
+    let extra = "";
+    if (s.cards) {
+      extra = `<div class="animals">${ANIMALS.map(([k,ko]) => `<button class="an ${placed.includes(ko)?'sel':''}" data-pl="${ko}">${ko}</button>`).join("")}</div>
+        <div class="order">놓아 둔 카드: <strong>${placed.join(", ") || "없음"}</strong></div>`;
+    }
+    if (s.order) {
+      extra = `<div class="animals">${ANIMALS.map(([k,ko]) => { const i = order.indexOf(ko);
+        return `<button class="an ${i>=0?'sel':''}" data-an="${ko}">${i>=0?`<b>${i+1}</b>`:''}${ko}</button>`}).join("")}</div>
+        <div class="order">찾을 순서: <strong>${order.join(" → ") || "동물을 눌러 고르세요"}</strong>
+        &nbsp; <label><input type="checkbox" id="voice" ${voice?'checked':''}> 마이크로 말하기</label></div>`;
+    }
+    return `<div class="stage ${cls}"><div class="top"><div class="num">${s.n}</div><div><div class="ttl">${s.t}</div></div><div class="st">${stTxt}</div></div>
+      <div class="desc">${s.d}</div><div class="tags">${s.tags.map(x=>`<span class="tag">${x}</span>`).join("")}</div>${extra}
+      <div class="go"><button class="run" data-run="${s.n}" ${running?'disabled':''}>${st==="done"?"다시 실행":"실행"}</button></div></div>`;
+  }).join("");
+  [...document.querySelectorAll(".track i")].forEach((el,i) => { el.className = (curStage===i+1 && running) ? "now" : state[i+1]==="done" ? "done" : ""; });
+  document.querySelectorAll("[data-run]").forEach(b => b.onclick = () => run(+b.dataset.run));
+  document.querySelectorAll("[data-an]").forEach(b => b.onclick = () => { const k=b.dataset.an, i=order.indexOf(k); if(i>=0) order.splice(i,1); else if(order.length<3) order.push(k); render(); });
+  document.querySelectorAll("[data-pl]").forEach(b => b.onclick = () => { const k=b.dataset.pl, i=placed.indexOf(k); if(i>=0) placed.splice(i,1); else placed.push(k); render(); });
+  const v = $("voice"); if (v) v.onchange = () => { voice = v.checked; };
+}
+async function api(p, body){ const r = await fetch(BASE + p, body ? {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)} : {}); return r.json(); }
+async function run(n){
+  if (n===4 && !voice && order.length===0) { alert("찾을 동물을 골라 주세요"); return; }
+  const r = await api("/api/run", {stage:n, order: order.join(","), voice, cards: placed.join(",")});
+  if (!r.ok) { $("now").innerHTML = r.msg; return; }
+  curStage = n; runName = r.msg; since = 0; running = true;
+  $("say").innerHTML = ""; $("log").textContent = ""; $("maps").innerHTML = ""; $("mapCard").style.display = "none";
+  setNow(`${n}단계 ${STAGES[n-1].t} 시작`, "로봇에 최신 코드를 보내고 출발합니다");
+  render();
+}
+$("stopBtn").onclick = () => api("/api/stop", {});
+function setNow(a,b){ $("now").innerHTML = a + (b?`<small>${b}</small>`:""); }
+function friendly(t){
+  const m = t.match(/\]\s*(.*)$/); const s = m ? m[1] : t;
+  if (/카드 확정: (\S+) (\d)/.test(s)) { const x = s.match(/카드 확정: (\S+) (\d)/); return [`카드 발견: ${x[1]} (숫자 ${x[2]})`, ""]; }
+  if (/->/.test(s) && /^[A-Z_]+ -> [A-Z_]+/.test(s)) { const why = s.split(/\s{2}/)[1] || ""; return [why || null, ""]; }
+  return [null, null];
+}
+async function poll(){
+  try {
+    const r = await api(`/api/poll?since=${since}&name=${runName||""}`);
+    $("pill").textContent = r.running ? "로봇 움직이는 중" : "대기"; $("pill").classList.toggle("run", r.running);
+    if (r.name && r.name !== runName) { runName = r.name; since = 0; }
+    for (const e of r.events) {
+      since = e.seq + 1;
+      if (e.kind === "log") {
+        $("log").textContent += e.text + "\n";
+        const sm = e.text.match(/\[대사\]\s*(.*)$/);
+        if (sm) { const d = document.createElement("div"); d.className = "bub"; d.innerHTML = `${sm[1]}<small>${(e.text.match(/\[\s*([\d.]+)s\]/)||[,""])[1]}초</small>`;
+          if ($("say").querySelector(".hint")) $("say").innerHTML = ""; $("say").appendChild(d); $("say").scrollTop = 1e6; setNow(sm[1], "로봇이 말함"); }
+        else { const [a] = friendly(e.text); if (a) setNow(a, ""); }
+      } else if (e.kind === "status" && !/스캔/.test(e.text)) setNow(e.text, "");
+      else if (e.kind === "image") { $("mapCard").style.display = ""; const f = document.createElement("img"); f.src = BASE + `/api/img?path=${encodeURIComponent(e.path)}&t=${Date.now()}`; $("maps").appendChild(f); }
+      else if (e.kind === "summary" && curStage) {
+        const ok = ["DONE","한 바퀴 완료"].includes(e.data["성공"]);
+        state[curStage] = ok ? "done" : "fail"; save();
+        setNow(ok ? `${curStage}단계 완료` : `${curStage}단계가 끝까지 가지 못했어요`, ok ? "다음 단계로 넘어가세요" : (e.data["지난 단계"] ? "지난 단계: " + e.data["지난 단계"] : ""));
+      }
+    }
+    if (running && !r.running) { running = false; render(); }
+    else if (!running && r.running) { running = true; render(); }
+    if (SERVER_OK !== true) { SERVER_OK = true; $("srv").style.display = "none"; }
+  } catch (e) { $("pill").textContent = "시연 서버 꺼짐"; if (SERVER_OK !== false) { SERVER_OK = false; $("srv").style.display = ""; } }
+  setTimeout(poll, running ? 300 : 1000);
+}
+let camOn = false;
+function cam(){
+  if (running) { const im = new Image(); im.onload = () => { $("cam").src = im.src; $("camtag").textContent = "실시간"; };
+    im.onerror = () => { $("camtag").textContent = "카메라 연결 기다리는 중"; }; im.src = BASE + "/api/cam?t=" + Date.now(); }
+  else $("camtag").textContent = "꺼짐";
+  setTimeout(cam, running ? 600 : 1500);
+}
+render(); poll(); cam();
+</script>
+</body>
+</html>
